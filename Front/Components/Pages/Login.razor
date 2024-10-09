@@ -1,0 +1,47 @@
+@page "/login"
+@inject ILogger<Login> Logger
+@inject NavigationManager NavigationManager
+@inject LoginService loginService
+@inject AuthenticationStateProvider authStateProvider
+
+<EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="log-container">
+    <h1 class="log-h1" >Login</h1>
+    <InputText @bind-Value="loginModel.Username" class="log-input" placeholder="Username"/>
+    <InputText @bind-Value="loginModel.Password" type="password" class="log-input" placeholder="Password" />
+    <button type="submit" class="log-submit" >Login</button>
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <p class="text-danger">@error</p>
+    }
+</EditForm>
+
+<br>
+<br>
+
+<p>Don't have an account yet ? </p><a href="register">Sign up</a> for free now !
+
+@code {
+    private LoginModel loginModel = new LoginModel();
+    private string error = "";
+
+    private async void HandleLogin()
+    {
+        var tuple = await loginService.AuthenticateUser(loginModel.Username, loginModel.Password);
+        if (tuple.user != null)
+        {
+            var userClaim = await ((CustomAuthenticationStateProvider)authStateProvider).MarkUserAsAuthenticated(tuple.user);
+            NavigationManager.NavigateTo("/");
+        }
+        else
+        {
+            error = tuple.error;
+            StateHasChanged();
+        }
+    }
+
+    private class LoginModel
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}

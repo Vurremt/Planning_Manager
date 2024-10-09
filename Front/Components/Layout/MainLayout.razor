@@ -1,0 +1,65 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider authStateProvider
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <AuthorizeView>
+                <Authorized>
+                    <div>
+                        <h3>Hello, @context.User.Identity.Name !</h3>
+                    </div>
+                    <a class="nav-link">
+                        <button class="btn btn-outline-secondary" @onclick="Logout">Logout</button>
+                    </a>
+                    <a class="nav-link" href="account">
+                        <button class="btn btn-outline-secondary">Your Account</button>
+                    </a>
+                </Authorized>
+                <NotAuthorized>
+                    <h4>You're not connected.</h4>
+                    <a class="nav-link" href="login">
+                        <button class="btn btn-outline-secondary">Sign in</button>
+                    </a>
+                </NotAuthorized>
+            </AuthorizeView>
+            
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+@code {
+
+    private async void Logout()
+    {
+        // Kill the session
+        await((CustomAuthenticationStateProvider)authStateProvider).Logout();
+        // Redirect the user to the login page
+        NavigationManager.NavigateTo("/login");
+        
+    }
+
+    private async void Delete()
+    {
+        // Kill the account
+        await((CustomAuthenticationStateProvider)authStateProvider).DeleteAccount();
+        // Redirect the user to the login page
+        NavigationManager.NavigateTo("/register");
+        
+    }
+}

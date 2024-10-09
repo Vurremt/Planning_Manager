@@ -1,0 +1,57 @@
+﻿@page "/account"
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider authStateProvider
+@inject UserService userService
+
+<PageTitle>Your Account</PageTitle>
+
+<AuthorizeView Roles="User">
+    <Authorized>
+
+        <h1>Account Options</h1>
+
+        <br>
+        <br>
+
+        @if (user == null)
+        {
+            <p><em>Your data is being recovered, if the process takes more than 30 seconds, please contact technical support</em></p>
+        }
+        else
+        {
+            <div>Name : <input type="text" value=@user.Name /></div>
+            <div>Email : <input type="text" value=@user.Email /></div>
+            <div>Password : <input type="text" /></div>
+            <button type="submit">Apply modifications</button>
+        }
+
+        <br>
+        <br>
+
+        <button class="btn btn-danger" @onclick="Delete">Delete your account</button>
+
+    </Authorized>
+    <NotAuthorized>
+        Not Logged in
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+
+    private UserDTO? user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await userService.GetMyUserDTO();
+    }
+
+    private async void Delete()
+    {
+        // Kill the account
+        await ((CustomAuthenticationStateProvider)authStateProvider).DeleteAccount();
+        // Redirect the user to the register page
+        NavigationManager.NavigateTo("/register");
+
+    }
+}

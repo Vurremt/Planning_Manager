@@ -1,0 +1,259 @@
+﻿@page "/tasks"
+@inject TaskService taskService
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
+
+<AuthorizeView Roles="User">
+    <Authorized>
+        <PageTitle>Task list</PageTitle>
+
+        <h1>Task list</h1>
+
+@if (tasks == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <button class="btn btn-primary" @onclick="ToggleAddTaskForm" style="margin-bottom: 10px">Add a new task</button>
+
+    @if (showAddTaskForm)
+    {
+        <div class="add-task-form">
+            <div class="input-add-task-form">
+                <div class="input-add-form">
+                    <label for="TaskTitle">Title:</label>
+                    <InputText id="TaskTitle" @bind-Value="@newTaskTitle" />
+                </div>
+                <div class="input-add-form">
+                    <label for="TaskDeadline">Deadline:</label>
+                    <InputDate id="TaskDeadline" @bind-Value="@newTaskDeadline" />
+                </div>
+            </div>
+            <div>
+                <label for="TaskDescription">Description:</label>
+                <InputTextArea id="TaskDescription" @bind-Value="@newTaskDescription" />
+            </div>
+            <button class="btn btn-success" @onclick="addTask">Save</button>
+
+            @if (!string.IsNullOrWhiteSpace(addErrorMessage))
+            {
+                <p class="text-danger" style="margin-left:10px">@addErrorMessage</p>
+            }
+        </div>
+    }
+
+    <div class="sort-menu" style="margin: 10px">
+        <label for="sortOption">Sort by:</label>
+        <select id="sortOption" @onchange=" SortTasksList">
+            <option value="Date" selected>Date</option>
+            <option value="Title">Title</option>
+            <option value="Deadline">Deadline</option>
+            <option value="Status">Status</option>
+        </select>
+    </div>
+
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Deadline</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var task in tasks)
+            {
+                <tr>
+                    @if (taskToModify != null && taskToModify.Id == task.Id)
+                    {
+                        @if (taskToModify.IsDone)
+                        {
+                            <img class="imgStatus" src="img/tick.png" @onclick="() => taskToModify.IsDone = !taskToModify.IsDone" />
+                        }
+                        else
+                        {
+                            <img class="imgStatus" src="img/cross.png" @onclick="() =>  taskToModify.IsDone = !taskToModify.IsDone" />
+                        }
+                        <td><InputText @bind-Value="@taskToModify.Title"/></td>
+                        <td><InputTextArea @bind-Value="@taskToModify.Description" /></td>
+                        <td><InputDate @bind-Value="@taskToModify.Deadline" /></td>
+                        <td>
+                            <button class="btn btn-danger" @onclick="() => ToggleModifyTaskForm(null)">Cancel</button>
+                            <button class="btn btn-success" @onclick="() => UpdateTask(task)">Save</button>
+
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" @onclick="() => DeleteTask(task.Id)">X</button>
+                        </td>
+                        @if (!string.IsNullOrWhiteSpace(updateErrorMessage))
+                        {
+                            <p class="text-danger">@updateErrorMessage</p>
+                        }
+                    }
+                    else
+                    {
+                        @if (task.IsDone)
+                        {
+                            <img class="imgStatus" src="img/tick.png" @onclick="() => HandleStatusTask(task)"  />
+                        }
+                        else
+                        {
+                            <img class="imgStatus" src="img/cross.png" @onclick="() => HandleStatusTask(task)" />
+                        }
+                        <td>@task.Title</td>
+                        <td class="description-cell">@task.Description</td>
+                        <td>@task.Deadline.ToString("dddd dd MMMM yyyy")</td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="() => ToggleModifyTaskForm(task)">Modify</button>
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" @onclick="() => DeleteTask(task.Id)">X</button>
+                        </td>
+                    }
+
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+    </Authorized>
+
+    <NotAuthorized>
+        Not Logged in
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool showAddTaskForm = false;
+    private string newTaskTitle = string.Empty;
+    private string newTaskDescription = string.Empty;
+    private DateTime newTaskDeadline = DateTime.Today;
+    private TaskModel[]? tasks;
+    private TaskModel? taskToModify = null;
+    private string? addErrorMessage = string.Empty;
+    private string? updateErrorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        tasks = await taskService.GetAllTasks();
+        Console.WriteLine(tasks);
+    }
+
+    private void ToggleAddTaskForm()
+    {
+        showAddTaskForm = !showAddTaskForm;
+        addErrorMessage = string.Empty;
+    }
+
+    private void ToggleModifyTaskForm(TaskModel? task)
+    {
+        if(task == null)
+        {
+            taskToModify = null;
+            updateErrorMessage = string.Empty;
+        }
+        else
+        {
+            taskToModify = new TaskModel
+                {
+                    Id = task.Id,
+                    IsDone = task.IsDone,
+                    Title = task.Title,
+                    Description = task.Description,
+                    Deadline = task.Deadline,
+                };
+        }
+    }
+
+    private async Task addTask()
+    {
+        if (tasks == null) return;
+        addErrorMessage = string.Empty;
+
+        var tuple = await taskService.CreateTask(newTaskTitle, newTaskDescription, newTaskDeadline);
+        var tasksList = tasks.ToList();
+        if(tuple.task != null) 
+        {
+            tasksList.Add(tuple.task);
+            tasks = tasksList.ToArray();
+            await SortTasksList();
+        }
+        else
+        {
+            addErrorMessage = tuple.error;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteTask(int id)
+    {
+        if (tasks == null) return;
+        await taskService.DeleteTask(id);
+        tasks = tasks.Where(t => t.Id != id).ToArray();
+    }
+
+    private async Task HandleStatusTask(TaskModel task)
+    {
+        if (tasks == null) return;
+        task.IsDone = !task.IsDone;
+        await taskService.UpdateTask(task);
+    }
+
+    private async Task UpdateTask(TaskModel task)
+    {
+        updateErrorMessage = string.Empty;
+
+        var tempTitle = task.Title;
+        var tempDescription = task.Description;
+        var tempDeadline = task.Deadline;
+
+        task.Title = taskToModify.Title;
+        task.Description = taskToModify.Description;
+        task.Deadline = taskToModify.Deadline;
+
+        var tuple = await taskService.UpdateTask(task);
+
+        if (tuple.task != null)
+        {
+            taskToModify = null;
+            await SortTasksList();
+        }
+        else
+        {
+            updateErrorMessage = tuple.error;
+            task.Title = tempTitle;
+            task.Description = tempDescription;
+            task.Deadline = tempDeadline;
+            StateHasChanged();
+        }
+    }
+
+
+    private async Task SortTasksList()
+    {
+        if (tasks != null)
+        {
+            tasks = await taskService.GetAllTasks();
+            var switchOption = await JSRuntime.InvokeAsync<string>("eval", "document.getElementById('sortOption').value");
+            switch (switchOption)
+            {
+                case "Title":
+                    tasks = tasks.OrderBy(task => task.Title).ToArray();
+                    break;
+                case "Deadline":
+                    tasks = tasks.OrderBy(task => task.Deadline).ToArray();
+                    break;
+                case "Status":
+                    tasks = tasks.OrderBy(task => task.IsDone).ToArray();
+                    break;
+                case "Date":
+                    break;
+            }
+        }
+    }
+
+
+}
