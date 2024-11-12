@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using EventService.Entities;
 using EventService.Data;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+using Microsoft.EntityFrameworkCore;
 
 namespace EventService.Controllers
 {
@@ -11,98 +12,98 @@ namespace EventService.Controllers
     [ApiController]
     public class EventController : ControllerBase
     {
+        private readonly EventServiceContext _context;
 
-        private EventDb EventDb { get; set; }
-
-        public EventController(EventDb EventDb)
+        public EventController(EventServiceContext context)
         {
-            EventDb = EventDb;
+            _context = context;
         }
 
-        // GET: api/Events/list/:UserId
+        // GET: api/Event/list/{UserId}
         [HttpGet("list/{UserId}")]
-        public ActionResult<IEnumerable<Entities.EventModel>> Get(int UserId)
+        public async Task<ActionResult<IEnumerable<EventModel>>> GetEventsByUserId(int UserId)
         {
-            List<Entities.EventModel>? Events;
-            if (EventDb.Events.TryGetValue(UserId, out Events) && Events != null)
+            // Étape 1 : Récupérer les groupes de l'utilisateur
+            var groupIds = _context.Groups
+                .AsEnumerable()
+                .Where(g => g.ManagerIds.Contains(UserId) || g.SubscriberIds.Contains(UserId))
+                .Select(g => g.Id)
+                .ToList();
+
+            if (!groupIds.Any())
             {
-                return Events;
+                return NotFound("L'utilisateur n'appartient à aucun groupe.");
             }
-            else
-            {
-                EventDb.Events[UserId] = new List<Entities.EventModel>();
-                return Ok(EventDb.Events[UserId]);
-            }
+
+            // Étape 2 : Récupérer tous les événements associés à ces groupes
+            var events = await _context.Events
+                .Where(e => groupIds.Contains(e.GroupId))
+                .ToListAsync();
+
+            return Ok(events);
         }
 
-        // POST api/Events/create
-        [HttpPost("create/{UserId}")]
-        public ActionResult<Entities.EventModel> CreateEvent(int UserId, EventCreate Event)
+        // POST api/Event/create
+        [HttpPost("create")]
+        public async Task<ActionResult<EventModel>> CreateEvent(EventModel newEvent)
         {
-            List<Entities.EventModel>? Events;
-            if (!EventDb.Events.TryGetValue(UserId, out Events) || Events == null)
+            if (!_context.Groups.Any(g => g.Id == newEvent.GroupId))
             {
-                Events = new List<Entities.EventModel>();
-                EventDb.Events[UserId] = Events;
-            }
-            var index = 0;
-            if (Events.Count > 0)
-            {
-                index = Events.Max(t => t.Id) + 1;
+                return BadRequest("Le groupe spécifié n'existe pas.");
             }
 
-            var NewEvent = new Entities.EventModel
-            {
-                Id = index,
-                IsDone = Event.IsDone,
-                Title = Event.Title,
-                Description = Event.Description,
-                Deadline  = Event.Deadline,
-            };
-
-            EventDb.Events[UserId].Add(NewEvent);
-            return Ok(NewEvent);
+            _context.Events.Add(newEvent);
+            await _context.SaveChangesAsync();
+            return CreatedAtAction(nameof(GetEventById), new { id = newEvent.Id }, newEvent);
         }
 
-        // PUT api/Events/5
-        [HttpPut("update/{UserId}/{id}")]
-        public ActionResult<Entities.EventModel> Put(int UserId, int id, EventCreate EventUpdate)
+        // GET api/Event/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<EventModel>> GetEventById(int id)
         {
-            List<Entities.EventModel>? Events;
-            if (!EventDb.Events.TryGetValue(UserId, out Events) || Events == null)
-            {
-                Events = new List<EventModel>();
-                EventDb.Events[UserId] = Events;
-            }
-            var Event = Events.Find(t => t.Id == id);
-            if (Event == null)
+            var eventItem = await _context.Events.FindAsync(id);
+
+            if (eventItem == null)
             {
                 return NotFound();
             }
-            Event.Title = EventUpdate.Title;
-            Event.Description = EventUpdate.Description;
-            Event.IsDone = EventUpdate.IsDone;
-            Event.Deadline = EventUpdate.Deadline;
 
-            return Ok(Event);
+            return Ok(eventItem);
         }
 
-        // DELETE api/Events/5
-        [HttpDelete("delete/{UserId}/{id}")]
-        public ActionResult<bool> Delete(int UserId, int id)
+        // PUT api/Event/update/{id}
+        [HttpPut("update/{id}")]
+        public async Task<ActionResult<EventModel>> UpdateEvent(int id, EventModel updatedEvent)
         {
-            List<Entities.EventModel>? Events;
-            if (!EventDb.Events.TryGetValue(UserId, out Events) || Events == null)
-            {
-                Events = new List<EventModel>();
-                EventDb.Events[UserId] = Events;
-            }
-            var index = Events.FindIndex(t => t.Id == id);
-            if (index == -1)
+            var existingEvent = await _context.Events.FindAsync(id);
+            if (existingEvent == null)
             {
                 return NotFound();
             }
-            Events.RemoveAt(index);
+
+            existingEvent.Title = updatedEvent.Title;
+            existingEvent.Place = updatedEvent.Place;
+            existingEvent.Description = updatedEvent.Description;
+            existingEvent.StartingDate = updatedEvent.StartingDate;
+            existingEvent.Duration = updatedEvent.Duration;
+            existingEvent.GroupId = updatedEvent.GroupId;
+
+            await _context.SaveChangesAsync();
+            return Ok(existingEvent);
+        }
+
+        // DELETE api/Event/delete/{id}
+        [HttpDelete("delete/{id}")]
+        public async Task<ActionResult> DeleteEvent(int id)
+        {
+            var eventItem = await _context.Events.FindAsync(id);
+            if (eventItem == null)
+            {
+                return NotFound();
+            }
+
+            _context.Events.Remove(eventItem);
+            await _context.SaveChangesAsync();
             return Ok(true);
         }
     }
