@@ -47,6 +47,7 @@ namespace EventService.Controllers
         [HttpPost("create")]
         public async Task<ActionResult<EventModel>> CreateEvent(EventModel newEvent)
         {
+            // Penser à ajouter le user à ManagersIds
             if (!_context.Groups.Any(g => g.Id == newEvent.GroupId))
             {
                 return BadRequest("Le groupe spécifié n'existe pas.");
