@@ -7,9 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Front", "Front\Front.csproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GatewayService", "GatewayService\GatewayService.csproj", "{ABFBEA60-7627-475C-BFB4-40D164CF30D1}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaskService", "TaskService\TaskService.csproj", "{FE9F3DED-5E9D-48C4-B392-B64D6EC697C6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EventService", "TaskService\EventService.csproj", "{FE9F3DED-5E9D-48C4-B392-B64D6EC697C6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UserService", "UserService\UserService.csproj", "{A87D8268-9A64-4914-A864-D1234111C7B1}"
+EndProject
+Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "Database", "Database\Database.sqlproj", "{225F5A75-FAB5-444F-B499-C469C95B2430}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,12 @@ Global
 		{A87D8268-9A64-4914-A864-D1234111C7B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A87D8268-9A64-4914-A864-D1234111C7B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A87D8268-9A64-4914-A864-D1234111C7B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{225F5A75-FAB5-444F-B499-C469C95B2430}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{225F5A75-FAB5-444F-B499-C469C95B2430}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{225F5A75-FAB5-444F-B499-C469C95B2430}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{225F5A75-FAB5-444F-B499-C469C95B2430}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{225F5A75-FAB5-444F-B499-C469C95B2430}.Release|Any CPU.Build.0 = Release|Any CPU
+		{225F5A75-FAB5-444F-B499-C469C95B2430}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
