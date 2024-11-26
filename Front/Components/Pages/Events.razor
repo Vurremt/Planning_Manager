@@ -1,0 +1,257 @@
+﻿@page "/events"
+@inject EventService eventService
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
+
+<AuthorizeView Roles="User">
+    <Authorized>
+        <PageTitle>Event list</PageTitle>
+
+        <h1>Event list</h1>
+
+        @if (events == null)
+
+        {
+            <p><em>Loading...</em></p>
+        }
+
+        else
+
+        {
+            <button class="btn btn-primary" @onclick="ToggleAddEventForm" style="margin-bottom: 10px">Add a new event</button>
+
+            @if (showAddEventForm)
+
+            {
+                <div class="add-e-form">
+                    <div class="input-add-e-form">
+                        <div class="input-add-form">
+                            <label for="EventTitle">Title:</label>
+                            <InputText id="EventTitle" @bind-Value="@newEventTitle" />
+                        </div>
+                        <div class="input-add-form">
+                            <label for="EventPlace">Place:</label>
+                            <InputText id="EventPlace" @bind-Value="@newEventPlace" />
+                        </div>
+                        <div class="input-add-form">
+                            <label for="EventStartingDate">Starting Date:</label>
+                            <InputDate id="EventStartingDate" @bind-Value="@newEventStartingDate" />
+                        </div>
+                        <div class="input-add-form">
+                            <label for="EventDuration">Duration (hours):</label>
+                            <InputNumber id="EventDuration" @bind-Value="@newEventDuration" />
+                        </div>
+                        <div class="input-add-form">
+                            <label for="EventGroupId">Group ID:</label>
+                            <InputNumber id="EventGroupId" @bind-Value="@newEventGroupId" />
+                        </div>
+                    </div>
+                    <div>
+                        <label for="EventDescription">Description:</label>
+                        <InputTextArea id="EventDescription" @bind-Value="@newEventDescription" />
+                    </div>
+                    <button class="btn btn-success" @onclick="AddEvent">Save</button>
+
+                    @if (!string.IsNullOrWhiteSpace(addErrorMessage))
+
+                    {
+                        <p class="text-danger" style="margin-left:10px">@addErrorMessage</p>
+                    }
+                </div>
+            }
+
+            <div class="sort-menu" style="margin: 10px">
+                <label for="sortOption">Sort by:</label>
+                <select id="sortOption" @onchange="SortEventsList">
+                    <option value="Date" selected>Date</option>
+                    <option value="Title">Title</option>
+                    <option value="Place">Place</option>
+                    <option value="Duration">Duration</option>
+                    <option value="GroupId">Group ID</option>
+                </select>
+            </div>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Place</th>
+                        <th>Description</th>
+                        <th>Starting Date</th>
+                        <th>Duration</th>
+                        <th>Group ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in events)
+
+                    {
+                        <tr>
+                            @if (eventToModify != null && eventToModify.Id == e.Id)
+
+                            {
+                                <td><InputText @bind-Value="@eventToModify.Title" /></td>
+                                <td><InputText @bind-Value="@eventToModify.Place" /></td>
+                                <td><InputTextArea @bind-Value="@eventToModify.Description" /></td>
+                                <td><InputDate @bind-Value="@eventToModify.StartingDate" /></td>
+                                <td><InputNumber @bind-Value="@eventToModify.Duration" /></td>
+                                <td><InputNumber @bind-Value="@eventToModify.GroupId" /></td>
+                                <td>
+                                    <button class="btn btn-danger" @onclick="() => ToggleModifyEventForm(null)">Cancel</button>
+                                    <button class="btn btn-success" @onclick="() => UpdateEvent(eventToModify)">Save</button>
+                                </td>
+                                <td>
+                                    <button class="btn btn-danger" @onclick="() => DeleteEvent(e.Id)">X</button>
+                                </td>
+                                @if (!string.IsNullOrWhiteSpace(updateErrorMessage))
+
+                                {
+                                    <p class="text-danger">@updateErrorMessage</p>
+                                }
+                            }
+                            else
+                            {
+                                <td>@e.Title</td>
+                                <td>@e.Place</td>
+                                <td class="description-cell">@e.Description</td>
+                                <td>@e.StartingDate.ToString("dddd dd MMMM yyyy")</td>
+                                <td>@e.Duration</td>
+                                <td>@e.GroupId</td>
+                                <td>
+                                    <button class="btn btn-primary" @onclick="() => ToggleModifyEventForm(e)">Modify</button>
+                                </td>
+                                <td>
+                                    <button class="btn btn-danger" @onclick="() => DeleteEvent(e.Id)">X</button>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </Authorized>
+
+    <NotAuthorized>
+        Not Logged in
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool showAddEventForm = false;
+    private string newEventTitle = string.Empty;
+    private string newEventPlace = string.Empty;
+    private string newEventDescription = string.Empty;
+    private DateTime newEventStartingDate = DateTime.Today;
+    private int newEventDuration = 0;
+    private int newEventGroupId = 0;
+    private EventModel[]? events;
+    private EventModel? eventToModify = null;
+    private string? addErrorMessage = string.Empty;
+    private string? updateErrorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        events = await eventService.GetAllEvents();
+    }
+
+    private void ToggleAddEventForm()
+    {
+        showAddEventForm = !showAddEventForm;
+        addErrorMessage = string.Empty;
+    }
+
+    private void ToggleModifyEventForm(EventModel? e)
+    {
+        if (e == null)
+        {
+            eventToModify = null;
+            updateErrorMessage = string.Empty;
+        }
+        else
+        {
+            eventToModify = new EventModel
+                {
+                    Id = e.Id,
+                    Title = e.Title,
+                    Place = e.Place,
+                    Description = e.Description,
+                    StartingDate = e.StartingDate,
+                    Duration = e.Duration,
+                    GroupId = e.GroupId
+                };
+        }
+    }
+
+    private async Task AddEvent()
+    {
+        if (string.IsNullOrWhiteSpace(newEventTitle) || string.IsNullOrWhiteSpace(newEventPlace) || newEventDuration <= 0)
+        {
+            addErrorMessage = "Please fill in all required fields.";
+            return;
+        }
+        addErrorMessage = string.Empty;
+
+        var tuple = await eventService.CreateEvent(newEventTitle, newEventPlace, newEventDescription, newEventStartingDate, newEventDuration, newEventGroupId);
+        if (tuple.e != null)
+        {
+            var eventsList = events.ToList();
+            eventsList.Add(tuple.e);
+            events = eventsList.ToArray();
+            showAddEventForm = false;
+        }
+        else
+        {
+            addErrorMessage = tuple.error;
+        }
+    }
+
+    private async Task UpdateEvent(EventModel e)
+    {
+        updateErrorMessage = string.Empty;
+        var tuple = await eventService.UpdateEvent(e);
+
+        if (tuple.e != null)
+        {
+
+            eventToModify = null;
+
+            events = events.Select(ev => ev.Id == e.Id ? tuple.e : ev).ToArray();
+        }
+        else
+        {
+            updateErrorMessage = tuple.error;
+        }
+    }
+
+    private async Task DeleteEvent(int id)
+    {
+        if (events == null) return;
+        await eventService.DeleteEvent(id);
+        events = events.Where(e => e.Id != id).ToArray();
+    }
+
+    private async Task SortEventsList()
+
+    {
+
+        var sortOption = (string)await JSRuntime.InvokeAsync<string>("eval", "document.getElementById('sortOption').value");
+
+
+
+        events = sortOption switch
+
+        {
+
+            "Title" => events.OrderBy(e => e.Title).ToArray(),
+
+            "Place" => events.OrderBy(e => e.Place).ToArray(),
+
+            "Duration" => events.OrderBy(e => e.Duration).ToArray(),
+
+            "GroupId" => events.OrderBy(e => e.GroupId).ToArray(),
+
+            _ => events.OrderBy(e => e.StartingDate).ToArray()
+
+        };
+
+    }
+}

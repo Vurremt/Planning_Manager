@@ -1,4 +1,4 @@
-namespace EventService.Entities
+namespace Front.Entities
 {
     public class GroupModel
     {
@@ -9,7 +9,7 @@ namespace EventService.Entities
         public List<int> SubscriberIds { get; set; } = new();
     }
 
-public class GroupCreateModel
+    public class GroupCreateModel
     {
         public required string Title { get; set; }
         public string? Description { get; set; }
@@ -18,3 +18,4 @@ public class GroupCreateModel
 
     }
 }
+

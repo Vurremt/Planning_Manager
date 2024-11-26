@@ -1,4 +1,4 @@
-﻿namespace EventService.Entities
+namespace Front.Entities
 {
     public class EventModel
     {
@@ -20,3 +20,4 @@
         public int GroupId { get; set; }
     }
 }
+

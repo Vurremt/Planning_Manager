@@ -27,7 +27,8 @@ builder.Services.AddScoped<ProtectedLocalStorage>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<LoginService>();
 builder.Services.AddScoped<RegisterService>();
-builder.Services.AddScoped<TaskService>();
+builder.Services.AddScoped<EventService>();
+builder.Services.AddScoped<GroupService>();
 builder.Services.AddScoped<UserService>();
 
 

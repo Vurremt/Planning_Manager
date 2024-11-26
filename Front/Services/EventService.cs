@@ -8,21 +8,22 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace Front.Services
 {
-    public class TaskService
+    public class EventService
     {
         private readonly HttpClient _httpClient;
         private ProtectedLocalStorage _sessionStorage;
 
-        public TaskService(HttpClient httpClient, ProtectedLocalStorage sessionStorage)
+        public EventService(HttpClient httpClient, ProtectedLocalStorage sessionStorage)
         {
             _httpClient = httpClient;
             _sessionStorage = sessionStorage;
         }
 
-        public async Task<TaskModel[]> GetAllTasks()
+        public async Task<EventModel[]> GetAllEvents()
         {
             try
             {
@@ -33,23 +34,23 @@ namespace Front.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = await response.Content.ReadFromJsonAsync<TaskModel[]>();
+                    var result = await response.Content.ReadFromJsonAsync<EventModel[]>();
 
-                    return result ?? Array.Empty<TaskModel>();
+                    return result ?? Array.Empty<EventModel>();
                 }
                 else
                 {
-                    return Array.Empty<TaskModel>();
+                    return Array.Empty<EventModel>();
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GetAllTasks: {ex.Message}");
-                return Array.Empty<TaskModel>();
+                Console.WriteLine($"Error in GetAllEvents: {ex.Message}");
+                return Array.Empty<EventModel>();
             }
         }
 
-        public async Task<(TaskModel? task, string? error)> CreateTask(string title, string? description, DateTime deadline)
+        public async Task<(EventModel? e, string? error)> CreateEvent(string title, string place, string? description, DateTime startingDate, int Duration, int groupId)
         {
             var jwt = await _sessionStorage.GetAsync<string>("jwt");
             var token = await _sessionStorage.GetAsync<string>("jwt");
@@ -58,19 +59,20 @@ namespace Front.Services
             {
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
 
-                var task = new TaskCreateModel()
+                var task = new EventCreateModel()
                 {
-                    IsDone = false,
                     Title = title,
+                    Place = place,
                     Description = description,
-                    Deadline = deadline,
-
+                    StartingDate = startingDate,
+                    Duration = Duration,
+                    GroupId = groupId
                 };
                 HttpResponseMessage response = await _httpClient.PostAsJsonAsync("http://localhost:5000/api/Task/create", task);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = await response.Content.ReadFromJsonAsync<TaskModel>();
+                    var result = await response.Content.ReadFromJsonAsync<EventModel>();
 
                     return (result, "");
                 }
@@ -83,7 +85,7 @@ namespace Front.Services
             return (null, "Invalid Token");
         }
 
-        public async Task<(TaskModel? task, string? error)> UpdateTask(TaskModel todo)
+        public async Task<(EventModel? e, string? error)> UpdateEvent(EventModel newEvent)
         {
             var token = await _sessionStorage.GetAsync<string>("jwt");
 
@@ -91,18 +93,26 @@ namespace Front.Services
             {
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
 
-                var task = new TaskCreateModel() { IsDone = todo.IsDone, Title = todo.Title, Description = todo.Description, Deadline = todo.Deadline };
+                var e = new EventCreateModel()
+                {
+                    Title = newEvent.Title,
+                    Place = newEvent.Place,
+                    Description = newEvent.Description,
+                    StartingDate = newEvent.StartingDate,
+                    Duration = newEvent.Duration,
+                    GroupId = newEvent.GroupId
+                };
 
                 var jwt = await _sessionStorage.GetAsync<string>("jwt");
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt.Value);
-                HttpResponseMessage response = await _httpClient.PutAsJsonAsync($"http://localhost:5000/api/Task/update/{todo.Id}", task);
+                HttpResponseMessage response = await _httpClient.PutAsJsonAsync($"http://localhost:5000/api/Event/update/{newEvent.Id}", e);
 
                 Console.WriteLine(response.Content.ToString());
                 Console.WriteLine(response.StatusCode);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = await response.Content.ReadFromJsonAsync<TaskModel>();
+                    var result = await response.Content.ReadFromJsonAsync<EventModel>();
                     return (result, "");
                 }
                 else
@@ -115,7 +125,7 @@ namespace Front.Services
             return (null, "Invalid Token");
         }
 
-        public async Task DeleteTask(int id)
+        public async Task DeleteEvent(int id)
         {
 
             var token = await _sessionStorage.GetAsync<string>("jwt");
@@ -124,7 +134,7 @@ namespace Front.Services
             {
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
 
-                HttpResponseMessage response = await _httpClient.DeleteAsync($"http://localhost:5000/api/Task/delete/{id}");
+                HttpResponseMessage response = await _httpClient.DeleteAsync($"http://localhost:5000/api/Event/delete/{id}");
 
                 Console.WriteLine(response.Content.ToString());
                 Console.WriteLine(response.StatusCode);

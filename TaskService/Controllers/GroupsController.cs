@@ -61,7 +61,7 @@ namespace EventService.Controllers
             }
 
             // Mettre à jour les propriétés du groupe
-            existingGroup.Titre = updatedGroup.Titre;
+            existingGroup.Title = updatedGroup.Title;
             existingGroup.Description = updatedGroup.Description;
             existingGroup.ManagerIds = updatedGroup.ManagerIds;
             existingGroup.SubscriberIds = updatedGroup.SubscriberIds;
