@@ -167,20 +167,6 @@ namespace GatewayService.Controllers
             }
         }
 
-        [Authorize]
-        [HttpGet("jwt")]
-        public ActionResult<string> Jwt()
-        {
-            var userName = User.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name)?.Value;
-
-            foreach (var claim in User.Claims)
-            {
-                Console.WriteLine(claim.Type + " " + claim.Value);
-            }
-            Console.WriteLine("jwt");
-            return Ok($"Hello, {userName}");
-        }
-
         private string GenerateJwtToken(int userId)
         {
             var claims = new List<Claim>
