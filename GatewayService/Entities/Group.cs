@@ -1,4 +1,4 @@
-namespace EventService.Entities
+namespace GatewayService.Entities
 {
     public class GroupModel
     {
@@ -9,7 +9,7 @@ namespace EventService.Entities
         public List<int> SubscriberIds { get; set; } = new();
     }
 
-public class GroupCreateModel
+public class GroupCreate
     {
         public required string Titre { get; set; }
         public string? Description { get; set; }

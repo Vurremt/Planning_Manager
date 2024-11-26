@@ -19,6 +19,28 @@ namespace EventService.Controllers
             _context = context;
         }
 
+        // GET api/Event/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<EventModel>> GetEventById(int id)
+        {
+            var eventItem = await _context.Events.FindAsync(id);
+
+            if (eventItem == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(eventItem);
+        }
+
+        // GET: api/Group/list
+        [HttpGet("list")]
+        public async Task<ActionResult<IEnumerable<EventModel>>> GetAllEvents()
+        {
+            var events = await _context.Events.ToListAsync();
+            return Ok(events);
+        }
+
         // GET: api/Event/list/{UserId}
         [HttpGet("list/{UserId}")]
         public async Task<ActionResult<IEnumerable<EventModel>>> GetEventsByUserId(int UserId)
@@ -56,20 +78,6 @@ namespace EventService.Controllers
             _context.Events.Add(newEvent);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetEventById), new { id = newEvent.Id }, newEvent);
-        }
-
-        // GET api/Event/{id}
-        [HttpGet("{id}")]
-        public async Task<ActionResult<EventModel>> GetEventById(int id)
-        {
-            var eventItem = await _context.Events.FindAsync(id);
-
-            if (eventItem == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(eventItem);
         }
 
         // PUT api/Event/update/{id}

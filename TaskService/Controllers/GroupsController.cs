@@ -19,14 +19,6 @@ namespace EventService.Controllers
             _context = context;
         }
 
-        // GET: api/Group
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<GroupModel>>> GetAllGroups()
-        {
-            var groups = await _context.Groups.ToListAsync();
-            return Ok(groups);
-        }
-
         // GET api/Group/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<GroupModel>> GetGroupById(int id)
@@ -39,6 +31,29 @@ namespace EventService.Controllers
             }
 
             return Ok(group);
+        }
+
+        // GET: api/Group/list
+        [HttpGet("list")]
+        public async Task<ActionResult<IEnumerable<GroupModel>>> GetAllGroups()
+        {
+            var groups = await _context.Groups.ToListAsync();
+            return Ok(groups);
+        }
+
+        // GET: api/Group/list/{UserId}
+        [HttpGet("list/{UserId}")]
+        public async Task<ActionResult<IEnumerable<GroupModel>>> GetGroupsByUserId(int UserId)
+        {
+            var groups = await _context.Groups.ToListAsync(); 
+            
+            var userGroups = groups .Where(g => g.ManagerIds.Contains(UserId) || g.SubscriberIds.Contains(UserId)) .ToList();
+            
+            if (!userGroups.Any()) {
+                return NotFound("L'utilisateur n'appartient à aucun groupe.");
+            }
+
+            return Ok(userGroups);
         }
 
         // POST api/Group/create
@@ -61,7 +76,7 @@ namespace EventService.Controllers
             }
 
             // Mettre à jour les propriétés du groupe
-            existingGroup.Title = updatedGroup.Title;
+            existingGroup.Titre = updatedGroup.Titre;
             existingGroup.Description = updatedGroup.Description;
             existingGroup.ManagerIds = updatedGroup.ManagerIds;
             existingGroup.SubscriberIds = updatedGroup.SubscriberIds;
