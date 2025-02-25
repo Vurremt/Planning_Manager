@@ -1,0 +1,78 @@
+﻿@page "/groupform"
+@inject GroupService groupService
+@inject NavigationManager Navigation
+
+<div class="container mt-4">
+    <h1 class="text-center mb-4">Create your group</h1>
+
+    <div class="card shadow p-4">
+        <div class="mb-3">
+            <label for="GroupTitle" class="form-label">Title</label>
+            <span class="text-danger">*</span>
+            <InputText id="GroupTitle" class="form-control" @bind-Value="@newGroupTitle" />
+        </div>
+
+        <div class="mb-3">
+            <label for="GroupDescription" class="form-label">Description</label>
+            <textarea id="GroupDescription" class="form-control" rows="4" @bind="newGroupDescription"></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="GroupImage" class="form-label">Image (PNG or JPG)</label>
+            <input type="file" id="GroupImage" class="form-control" accept=".png, .jpg" />
+        </div>
+        <span class="text-danger">*required fields</span>
+        @if (!string.IsNullOrEmpty(previewImageUrl))
+
+        {
+            <div class="text-center mb-3">
+                <img src="@previewImageUrl" alt="Preview" class="img-fluid img-thumbnail" style="max-width: 300px;" />
+            </div>
+        }
+
+        <button class="btn btn-success w-100" @onclick="CreateGroup">Create</button>
+
+        @if (!string.IsNullOrWhiteSpace(addErrorMessage))
+
+        {
+            <div class="alert alert-danger mt-3">@addErrorMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+    private string newGroupTitle = string.Empty;
+
+    private string newGroupDescription = string.Empty;
+
+    private IBrowserFile? selectedImage;
+
+    private string addErrorMessage = string.Empty;
+
+    private string previewImageUrl = string.Empty;
+
+    private async Task CreateGroup()
+
+    {
+        try
+        {
+            var result = await groupService.CreateGroup(newGroupTitle, newGroupDescription);
+
+            if (result.group != null)
+
+            {
+
+                Navigation.NavigateTo("/mygroups");
+            }
+
+            else
+            {
+                addErrorMessage = result.error ?? "Failed to create group.";
+            }
+        }
+        catch (Exception ex)
+        {
+            addErrorMessage = $"An error occurred: {ex.Message}";
+        }
+    }
+}

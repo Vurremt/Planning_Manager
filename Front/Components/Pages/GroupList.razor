@@ -1,0 +1,96 @@
+﻿@page "/groups"
+@inject EventService eventService
+@inject GroupService groupService
+@inject NavigationManager Navigation
+
+<div class="container mt-4">
+    <h1 class="text-center">Explore Groups</h1>
+
+    @if (allGroups == null || followedGroups == null)
+
+    {
+        <p>Loading...</p>
+    }
+
+    else
+
+    {
+        <div class="search-bar-container mb-4">
+            <input @bind="searchTerm" @bind:event="oninput"
+                   class="form-control form-control-lg"
+                   placeholder="Search for a group..." />
+        </div>
+
+        <div class="group-results row">
+            @foreach (var group in filteredNonFollowedGroups.Take(4))
+
+            {
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-3">
+                    <div class="card d-flex flex-row align-items-center p-3">
+                        <img src="img/group.png"
+                             alt="Image du groupe"
+                             class="group-image me-3"
+                             style="width: 50px; height: 50px;" />
+                        <div class="flex-grow-1">
+                            <h5>@group.Titre</h5>
+                            <button class="btn btn-dark btn-sm" @onclick="() => ShowGroupDetails(group.Id)">
+                                Details
+                            </button>
+                            <button class="btn btn-primary btn-sm" @onclick="() => FollowGroup(group.Id)">
+                                Subscribe
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private GroupModel[]? allGroups;
+
+    private GroupModel[]? followedGroups;
+
+    private string searchTerm = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        allGroups = await groupService.GetAllGroups();
+        followedGroups = await groupService.GetFollowedGroups();
+    }
+
+
+
+    private IEnumerable<GroupModel> filteredNonFollowedGroups =>
+
+        allGroups?.Where(group => !followedGroups?.Any(fg => fg.Id == group.Id) ?? true)
+
+                  .Where(group => group.Titre.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+
+        ?? Enumerable.Empty<GroupModel>();
+
+
+
+    private void ShowGroupDetails(int groupId)
+
+    {
+
+        Navigation.NavigateTo($"/groups/{groupId}");
+
+    }
+
+    private async Task FollowGroup(int groupId)
+
+    {
+
+        await groupService.AddUserToGroup(groupId);
+
+        followedGroups = await groupService.GetFollowedGroups();
+
+        allGroups = await groupService.GetAllGroups();
+
+        StateHasChanged();
+
+    }
+}

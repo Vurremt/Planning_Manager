@@ -100,7 +100,6 @@ namespace UserService.Controllers
                 Email = userPayload.Email,
                 Name = userPayload.Name,
             };
-            Console.WriteLine(userPayload.Name + " " + userPayload.Password);
             user.PasswordHash = _passwordHasher.HashPassword(user, userPayload.Password);
 
             _context.User.Add(user);

@@ -154,4 +154,9 @@ h1:focus {
     margin-bottom: 20px;
 }
 
+.group-image {
+    object-fit: cover; /* Pour garantir que l'image garde de bonnes proportions */
+}
+
+
 

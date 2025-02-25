@@ -23,6 +23,87 @@ namespace Front.Services
             _sessionStorage = sessionStorage;
         }
 
+        public async Task<GroupModel?> GetGroupById(int id)
+        {
+            try
+            {
+                var token = await _sessionStorage.GetAsync<string>("jwt");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+
+                HttpResponseMessage response = await _httpClient.GetAsync($"http://localhost:5000/api/Group/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<GroupModel>();
+
+                    return result ?? null;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetGroupById: {ex.Message}");
+                return null;
+            }
+        }
+
+
+        public async Task<bool> IsUserAdmin(int id)
+        {
+            try
+            {
+                var token = await _sessionStorage.GetAsync<string>("jwt");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+
+                HttpResponseMessage response = await _httpClient.GetAsync($"http://localhost:5000/api/Group/admin/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<bool>();
+
+                    return result;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetGroupById: {ex.Message}");
+                return false;
+            }
+        }
+        public async Task<GroupModel[]> GetFollowedGroups()
+        {
+            try
+            {
+                var token = await _sessionStorage.GetAsync<string>("jwt");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+
+                HttpResponseMessage response = await _httpClient.GetAsync("http://localhost:5000/api/Group/followed");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<GroupModel[]>();
+
+                    return result ?? Array.Empty<GroupModel>();
+                }
+                else
+                {
+                    return Array.Empty<GroupModel>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetAllGroups: {ex.Message}");
+                return Array.Empty<GroupModel>();
+            }
+        }
+
         public async Task<GroupModel[]> GetAllGroups()
         {
             try
@@ -49,12 +130,63 @@ namespace Front.Services
                 return Array.Empty<GroupModel>();
             }
         }
-        public int Id { get; set; }
-        public required string Title { get; set; }
-        public string? Description { get; set; }
-        public List<int> ManagerIds { get; set; } = new();
-        public List<int> SubscriberIds { get; set; } = new();
-        public async Task<(GroupModel? group, string? error)> CreateGroup(string title, string? description, List<int> managerIds, List<int> subscriberIds)
+
+        public async Task<GroupModel?> AddUserToGroup(int id)
+        {
+            try
+            {
+                var token = await _sessionStorage.GetAsync<string>("jwt");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+
+                HttpResponseMessage response = await _httpClient.GetAsync($"http://localhost:5000/api/Group/{id}/add");
+                Console.WriteLine("response");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("ok");
+                    var result = await response.Content.ReadFromJsonAsync<GroupModel>();
+
+                    return result ?? null;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in AddUserToGroup: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<GroupModel?> RemoveUserFromGroup(int id)
+        {
+            try
+            {
+                var token = await _sessionStorage.GetAsync<string>("jwt");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+
+                HttpResponseMessage response = await _httpClient.GetAsync($"http://localhost:5000/api/Group/{id}/remove");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<GroupModel>();
+
+                    return result ?? null;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in RemoveUserFromGroup: {ex.Message}");
+                return null;
+            }
+        }
+        public async Task<(GroupModel? group, string? error)> CreateGroup(string title, string? description)
         {
             var jwt = await _sessionStorage.GetAsync<string>("jwt");
             var token = await _sessionStorage.GetAsync<string>("jwt");
@@ -65,10 +197,10 @@ namespace Front.Services
 
                 var group = new GroupCreateModel()
                 {
-                    Title = title,
+                    Titre = title,
                     Description = description,
-                    ManagerIds = managerIds,
-                    SubscriberIds = subscriberIds
+                    ManagerIds = [],
+                    SubscriberIds = []
                 };
                 HttpResponseMessage response = await _httpClient.PostAsJsonAsync("http://localhost:5000/api/Group/create", group);
 
@@ -97,7 +229,7 @@ namespace Front.Services
 
                 var group = new GroupCreateModel()
                 {
-                    Title = newGroup.Title,
+                    Titre = newGroup.Titre,
                     Description = newGroup.Description,
                     ManagerIds = newGroup.ManagerIds,
                     SubscriberIds = newGroup.SubscriberIds,

@@ -33,6 +33,20 @@ namespace EventService.Controllers
             return Ok(group);
         }
 
+        // GET api/Group/{id}
+        [HttpGet("admin/{id}/{userId}")]
+        public async Task<ActionResult<bool>> IsUserAdmin(int id, int userId)
+        {
+            var groups = await _context.Groups.ToListAsync();
+
+            var userGroups = groups.Where(g => g.ManagerIds.Contains(userId) && g.Id == id).ToList();
+            if (userGroups.Any())
+            {
+                return Ok(true);
+            }
+            return Ok(false);
+        }
+
         // GET: api/Group/list
         [HttpGet("list")]
         public async Task<ActionResult<IEnumerable<GroupModel>>> GetAllGroups()
@@ -64,6 +78,73 @@ namespace EventService.Controllers
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetGroupById), new { id = newGroup.Id }, newGroup);
         }
+
+        // PUT api/Group/{groupId}/add
+        [HttpPut("{groupId}/add")]
+        public async Task<ActionResult<GroupModel>> AddUserToGroup([FromBody] int userId, int groupId)
+        {
+            var existingGroup = await _context.Groups.FindAsync(groupId);
+            if (existingGroup == null)
+            {
+                return NotFound();
+            }
+
+            if (!existingGroup.SubscriberIds.Contains(userId))
+            {
+                existingGroup.SubscriberIds.Add(userId);
+                _context.Groups.Update(existingGroup);
+                await _context.SaveChangesAsync(); 
+            }
+            else
+            {
+                return Conflict("User is already subscribed to this group.");
+            }
+
+            return Ok(existingGroup);
+        }
+
+        // PUT api/Group/{groupId}/remove
+        [HttpPut("{groupId}/remove")]
+        public async Task<ActionResult> RemoveUserFromGroup(int groupId, [FromBody] int userId)
+        {
+            // Récupérer le groupe par son ID
+            var existingGroup = await _context.Groups.FindAsync(groupId);
+
+            if (existingGroup == null)
+            {
+                return NotFound(); // Retourner une erreur si le groupe n'existe pas
+            }
+
+            // Vérifier si l'utilisateur est dans la liste des managers et le supprimer
+            if (existingGroup.ManagerIds != null && existingGroup.ManagerIds.Contains(userId))
+            {
+                existingGroup.ManagerIds.Remove(userId);
+            }
+
+            // Vérifier si l'utilisateur est dans la liste des abonnés et le supprimer
+            if (existingGroup.SubscriberIds != null && existingGroup.SubscriberIds.Contains(userId))
+            {
+                existingGroup.SubscriberIds.Remove(userId);
+            }
+
+            // Si la liste des managers est vide après la suppression, supprimer le groupe
+            if (existingGroup.ManagerIds == null || !existingGroup.ManagerIds.Any())
+            {
+                _context.Groups.Remove(existingGroup); // Supprimer le groupe
+            }
+            else
+            {
+                // Sinon, mettre à jour le groupe
+                _context.Groups.Update(existingGroup);
+            }
+
+            // Sauvegarder les changements dans la base de données
+            await _context.SaveChangesAsync();
+
+            // Retourner une réponse vide avec un statut 204 No Content
+            return Ok(existingGroup);
+        }
+
 
         // PUT api/Group/update/{id}
         [HttpPut("update/{id}")]

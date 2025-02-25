@@ -1,0 +1,214 @@
+﻿@page "/groups/{groupId:int}"
+@inject EventService eventService
+@inject GroupService groupService
+@inject AuthenticationStateProvider authStateProvider
+@inject NavigationManager Navigation
+
+<div class="container mt-5">
+    @if (group == null)
+    {
+        <div class="text-center">
+            <p class="text-muted">Loading...</p>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-lg">
+            <!-- Group Image -->
+            <img src="img/group.png" alt="Group Image" class="card-img-top rounded" style="max-height: 100px; object-fit: contain;" />
+
+            <!-- Card Body -->
+            <div class="card-body">
+                <h1 class="card-title text-center">@group.Titre</h1>
+                <p class="card-text text-muted text-center">@group.Description</p>
+
+                <!-- Admins Section -->
+                <div class="mt-4">
+                    <h4 class="text-primary">Admins</h4>
+                    <ul class="list-group">
+                        @foreach (var admin in group.ManagerIds)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                @admin
+                                @if (isAdmin)
+                                {
+                                    <button class="btn btn-sm btn-warning" @onclick="() => DemoteToSubscriber(admin)">Demote</button>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+                <!-- Subscribers Section -->
+                <div class="mt-4">
+                    <h4 class="text-primary">Subscribers</h4>
+                    <ul class="list-group">
+                        @foreach (var subscriber in group.SubscriberIds)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                @subscriber
+                                @if (isAdmin)
+                                {
+                                    <button class="btn btn-sm btn-success" @onclick="() => PromoteToAdmin(subscriber)">Promote</button>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-4 text-center">
+                    @if (!isAdmin)
+                    {
+                        @if (isFollowing)
+                        {
+                            <button class="btn btn-danger" @onclick="UnfollowGroup" disabled="@isSubmitting">Leave</button>
+                        }
+                        else {
+                            <button class="btn btn-primary me-2" @onclick="FollowGroup" disabled="@isSubmitting">Subscribe</button>                 
+                        }
+                    }
+
+                    @if (isAdmin)
+                    {
+                        <button class="btn btn-danger me-2" @onclick="DeleteGroup" disabled="@isSubmitting">Delete group</button>
+                        <button class="btn btn-secondary" @onclick="EditGroup" disabled="@isSubmitting">Edit group</button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int groupId { get; set; }
+
+    private GroupModel? group;
+    private bool isSubmitting = false;
+    private bool isAdmin = false;
+    private GroupModel[]? followedGroups;
+    private bool isFollowing = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            group = await groupService.GetGroupById(groupId);
+            isAdmin = await groupService.IsUserAdmin(groupId);
+            followedGroups = await groupService.GetFollowedGroups();
+            isFollowing = followedGroups.Any(group => group.Id == groupId);
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading group: {ex.Message}");
+        }
+    }
+
+    private async Task FollowGroup()
+    {
+        if (group == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            await groupService.AddUserToGroup(group.Id);
+            isFollowing = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error following group: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task UnfollowGroup()
+    {
+        if (group == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            await groupService.RemoveUserFromGroup(group.Id);
+            isFollowing = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error unfollowing group: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task DeleteGroup()
+    {
+        if (group == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            await groupService.DeleteGroup(group.Id);
+            Navigation.NavigateTo("/groups");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting group: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void EditGroup()
+    {
+        Navigation.NavigateTo($"/edit-group/{groupId}");
+    }
+
+    private async Task PromoteToAdmin(int subscriberId)
+    {
+        if (group == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            //await groupService.PromoteToAdmin(group.Id, subscriberId);
+            group.SubscriberIds.Remove(subscriberId);
+            group.ManagerIds.Add(subscriberId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error promoting user: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task DemoteToSubscriber(int adminId)
+    {
+        if (group == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            //await groupService.DemoteToSubscriber(group.Id, adminId);
+            group.ManagerIds.Remove(adminId);
+            group.SubscriberIds.Add(adminId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error demoting user: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

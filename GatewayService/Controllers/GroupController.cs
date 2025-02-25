@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace GatewayService.Controllers
 {
@@ -18,7 +19,7 @@ namespace GatewayService.Controllers
         }
 
         [Authorize]
-        [HttpGet]
+        [HttpGet("followed")]
         public async Task<ActionResult> GetMyGroupAsync()
         {
             var UserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
@@ -39,35 +40,160 @@ namespace GatewayService.Controllers
             {
                 return BadRequest("GetMyGroupAsync failed");
             }
-
         }
 
         [Authorize]
-        [HttpPost("create")]
-        public async Task<ActionResult> CreateGroup(GroupCreate _group)
+        [HttpGet("admin/{id}")]
+        public async Task<ActionResult> IsUserAdmin(int id)
         {
-            if (string.IsNullOrWhiteSpace(_group.Titre))
-                return BadRequest("Title can't be empty.");
-
-            if (!_group.ManagerIds.Any())
-                return BadRequest("List of manager can't be empty.");
-
             var UserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
             if (UserId == null) return Unauthorized();
 
-            HttpResponseMessage response = await client.PostAsJsonAsync($"api/Group/create", _group);
+            HttpResponseMessage response = await client.GetAsync($"api/Group/admin/{id}/{UserId}");
+
+            // Check if the response status code is 2XX
+            if (response.IsSuccessStatusCode)
+            {
+                var tasks = await response.Content.ReadFromJsonAsync<bool>();
+                return Ok(tasks);
+            }
+            else
+            {
+                return BadRequest("IsUserAdmin failed");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult> GetGroupById(int id)
+        {
+
+            HttpResponseMessage response = await client.GetAsync($"api/Group/{id}");
+
+            // Check if the response status code is 2XX
+            if (response.IsSuccessStatusCode)
+            {
+                var tasks = await response.Content.ReadFromJsonAsync<Entities.GroupModel>();
+                return Ok(tasks);
+            }
+            else
+            {
+                return BadRequest("GetGroupById failed");
+            }
+        }
+
+        [HttpGet]
+        public async Task<ActionResult> GetAllGroups()
+        {
+
+            HttpResponseMessage response = await client.GetAsync($"api/Group/list");
+
+            // Check if the response status code is 2XX
+            if (response.IsSuccessStatusCode)
+            {
+                var tasks = await response.Content.ReadFromJsonAsync<Entities.GroupModel[]>();
+                return Ok(tasks);
+            }
+            else
+            {
+                return BadRequest("GetAllGroups failed");
+            }
+        }
+
+        [Authorize]
+        [HttpGet("{id}/add")]
+        public async Task<ActionResult> AddUserToGroup(int id)
+        {
+            var UserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+            if (UserId == null) return Unauthorized();
+
+            if (!int.TryParse(UserId, out var userId))
+            {
+                return BadRequest("UserId parsing failed");
+            }
+
+            Console.WriteLine("requete");
+            HttpResponseMessage response = await client.PutAsJsonAsync($"api/Group/{id}/add", userId);
 
             // Check if the response status code is 2XX
             if (response.IsSuccessStatusCode)
             {
                 Console.WriteLine("ok");
-                var newGroup = await response.Content.ReadFromJsonAsync<Entities.GroupModel>();
-                return Ok(newGroup);
+                var group = await response.Content.ReadFromJsonAsync<Entities.GroupModel>();
+                return Ok(group);
             }
             else
             {
+                return BadRequest("AddUserToGroup failed");
+            }
+        }
+
+        [Authorize]
+        [HttpGet("{id}/remove")]
+        public async Task<ActionResult> RemoveUserFromGroup(int id)
+        {
+            var UserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+            if (UserId == null) return Unauthorized();
+
+            if (!int.TryParse(UserId, out var userId))
+            {
+                return BadRequest("UserId parsing failed");
+            }
+
+            HttpResponseMessage response = await client.PutAsJsonAsync($"api/Group/{id}/remove", userId);
+
+            // Check if the response status code is 2XX
+            if (response.IsSuccessStatusCode)
+            {
+                var group = await response.Content.ReadFromJsonAsync<Entities.GroupModel>();
+                return Ok(group);
+            }
+            else
+            {
+                return BadRequest("RemoveUserFromGroup failed");
+            }
+        }
+
+        [Authorize]
+        [HttpPost("create")]
+        public async Task<ActionResult> CreateGroup(GroupCreate group)
+        {
+            if (string.IsNullOrWhiteSpace(group.Titre))
+                return BadRequest("Please fill in all required fields.");
+
+            var UserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+            if (UserId == null) return Unauthorized();
+
+            if(!int.TryParse(UserId, out var userId))
+            {
                 return BadRequest("CreateGroup failed");
             }
+            group.ManagerIds.Add(userId);
+            HttpResponseMessage response = await client.GetAsync($"api/Group/list");
+
+            // Check if the response status code is 2XX
+            if (response.IsSuccessStatusCode)
+            {
+                var existingGroups = await response.Content.ReadFromJsonAsync<Entities.GroupModel[]>();
+                if (existingGroups.Any(g => g.Titre.Equals(group.Titre, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return BadRequest("A group with this name already exists. Please choose another one.");
+                }
+                else
+                {
+                    response = await client.PostAsJsonAsync($"api/Group/create", group);
+                    // Check if the response status code is 2XX
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var newGroup = await response.Content.ReadFromJsonAsync<Entities.GroupModel>();
+                        return Ok(newGroup);
+                    }
+                    else
+                    {
+                        return BadRequest("CreateGroup failed");
+                    }
+                }
+            }
+            return BadRequest("CreateGroup failed");
         }
 
         [Authorize]
