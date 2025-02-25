@@ -77,6 +77,99 @@ namespace Front.Services
                 return false;
             }
         }
+
+        public async Task<bool> PromoteToAdmin(int groupId, int userId)
+        {
+            try
+            {
+                var token = await _sessionStorage.GetAsync<string>("jwt");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+
+                // Récupérer les informations actuelles du groupe
+                HttpResponseMessage getResponse = await _httpClient.GetAsync($"http://localhost:5000/api/Group/{groupId}");
+                if (getResponse.IsSuccessStatusCode)
+                {
+                    var group = await getResponse.Content.ReadFromJsonAsync<GroupModel>();
+
+                    // Modifier le JSON pour promouvoir l'utilisateur en administrateur
+                    if (group != null && !group.ManagerIds.Contains(userId))
+                    {
+                        group.ManagerIds.Add(userId);
+                        group.SubscriberIds.Remove(userId);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+
+                    // Envoyer les données mises à jour à l'API
+                    HttpResponseMessage updateResponse = await _httpClient.PutAsJsonAsync($"http://localhost:5000/api/Group/update/{groupId}", group);
+                    return updateResponse.IsSuccessStatusCode;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in PromoteToAdmin: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> DemoteToSubscriber(int groupId, int adminId)
+        {
+            try
+            {
+                var token = await _sessionStorage.GetAsync<string>("jwt");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+
+                // Récupérer les informations actuelles du groupe
+                HttpResponseMessage getResponse = await _httpClient.GetAsync($"http://localhost:5000/api/Group/{groupId}");
+                if (getResponse.IsSuccessStatusCode)
+                {
+                    var group = await getResponse.Content.ReadFromJsonAsync<GroupModel>();
+
+                    // Vérifier si après le changement, il reste des admins
+                    if (group != null && group.ManagerIds.Contains(adminId))
+                    {
+                        if (group.ManagerIds.Count == 1)
+                        {
+                            throw new InvalidOperationException("Le groupe doit avoir au moins un administrateur.");
+                        }
+
+                        group.ManagerIds.Remove(adminId);
+                        group.SubscriberIds.Add(adminId);
+
+                        // Envoyer les données mises à jour à l'API
+                        HttpResponseMessage updateResponse = await _httpClient.PutAsJsonAsync($"http://localhost:5000/api/Group/update/{groupId}", group);
+                        return updateResponse.IsSuccessStatusCode;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"Error in DemoteToSubscriber: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in DemoteToSubscriber: {ex.Message}");
+                return false;
+            }
+        }
+
+
+
         public async Task<GroupModel[]> GetFollowedGroups()
         {
             try

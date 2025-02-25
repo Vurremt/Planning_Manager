@@ -83,6 +83,29 @@ namespace GatewayService.Controllers
             }
         }
 
+        [Authorize]
+        [HttpGet("{id}")]
+        public async Task<ActionResult<UserDTO>> GetUserAsync(int id)
+        {
+            using (var client = _httpClientFactory.CreateClient())
+            {
+                string urlWithId = $"http://localhost:5001/api/Users/{id}";
+
+                HttpResponseMessage response = await client.GetAsync(urlWithId);
+
+                // Check if the response status code is 2XX
+                if (response.IsSuccessStatusCode)
+                {
+                    var user = await response.Content.ReadFromJsonAsync<UserDTO>();
+                    return Ok(user);
+                }
+                else
+                {
+                    return BadRequest("GetUserAsync failed");
+                }
+            }
+        }
+
         // api/User/login
         [HttpPost("login")]
         public async Task<ActionResult<JWTAndUser>> Login(UserLogin model)

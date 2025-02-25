@@ -3,6 +3,7 @@
 @inject GroupService groupService
 @inject AuthenticationStateProvider authStateProvider
 @inject NavigationManager Navigation
+@inject UserService userService
 
 <div class="container mt-5">
     @if (group == null)
@@ -22,6 +23,14 @@
                 <h1 class="card-title text-center">@group.Titre</h1>
                 <p class="card-text text-muted text-center">@group.Description</p>
 
+                <!-- Error Message -->
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+                }
+
                 <!-- Admins Section -->
                 <div class="mt-4">
                     <h4 class="text-primary">Admins</h4>
@@ -29,7 +38,7 @@
                         @foreach (var admin in group.ManagerIds)
                         {
                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                @admin
+                                @(userNames.ContainsKey(admin) ? userNames[admin] : admin.ToString())
                                 @if (isAdmin)
                                 {
                                     <button class="btn btn-sm btn-warning" @onclick="() => DemoteToSubscriber(admin)">Demote</button>
@@ -46,7 +55,7 @@
                         @foreach (var subscriber in group.SubscriberIds)
                         {
                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                @subscriber
+                                @(userNames.ContainsKey(subscriber) ? userNames[subscriber] : subscriber.ToString())
                                 @if (isAdmin)
                                 {
                                     <button class="btn btn-sm btn-success" @onclick="() => PromoteToAdmin(subscriber)">Promote</button>
@@ -64,8 +73,9 @@
                         {
                             <button class="btn btn-danger" @onclick="UnfollowGroup" disabled="@isSubmitting">Leave</button>
                         }
-                        else {
-                            <button class="btn btn-primary me-2" @onclick="FollowGroup" disabled="@isSubmitting">Subscribe</button>                 
+                        else
+                        {
+                            <button class="btn btn-primary me-2" @onclick="FollowGroup" disabled="@isSubmitting">Subscribe</button>
                         }
                     }
 
@@ -88,6 +98,8 @@
     private bool isAdmin = false;
     private GroupModel[]? followedGroups;
     private bool isFollowing = true;
+    private string? errorMessage;
+    private Dictionary<int, string> userNames = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,12 +110,105 @@
             followedGroups = await groupService.GetFollowedGroups();
             isFollowing = followedGroups.Any(group => group.Id == groupId);
 
+            // Load user names
+            await LoadUserNames(group.ManagerIds);
+            await LoadUserNames(group.SubscriberIds);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading group: {ex.Message}");
         }
     }
+
+    private async Task LoadUserNames(IEnumerable<int> userIds)
+    {
+        foreach (var userId in userIds)
+        {
+            if (!userNames.ContainsKey(userId))
+            {
+                var user = await userService.GetUserDTOById(userId);
+                if (user != null)
+                {
+                    userNames[userId] = user.Name;
+                }
+            }
+        }
+    }
+
+
+    private async Task PromoteToAdmin(int subscriberId)
+    {
+        if (group == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            bool promoteOK = await groupService.PromoteToAdmin(group.Id, subscriberId);
+            if (promoteOK)
+            {
+                group.SubscriberIds.Remove(subscriberId);
+                group.ManagerIds.Add(subscriberId);
+                if (!userNames.ContainsKey(subscriberId))
+                {
+                    var user = await userService.GetUserDTOById(subscriberId);
+                    if (user != null)
+                    {
+                        Console.WriteLine($"UserDTO récupéré : Id={user.Id}, Name={user.Name}, Email={user.Email}");
+                        userNames[subscriberId] = user.Name;
+                        Console.WriteLine($"Utilisateur ajouté au dictionnaire : Id={subscriberId}, Name={user.Name}");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error promoting user: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task DemoteToSubscriber(int adminId)
+    {
+        if (group == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            bool demoteOK = await groupService.DemoteToSubscriber(group.Id, adminId);
+            if (demoteOK)
+            {
+                group.ManagerIds.Remove(adminId);
+                group.SubscriberIds.Add(adminId);
+                if (!userNames.ContainsKey(adminId))
+                {
+                    var user = await userService.GetUserDTOById(adminId);
+                    if (user != null)
+                    {
+                        Console.WriteLine($"UserDTO récupéré : Id={user.Id}, Name={user.Name}, Email={user.Email}");
+                        userNames[adminId] = user.Name;
+                        Console.WriteLine($"Utilisateur ajouté au dictionnaire : Id={adminId}, Name={user.Name}");
+                    }
+                }
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.WriteLine($"Error demoting user: {ex.Message}");
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error demoting user: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
 
     private async Task FollowGroup()
     {
@@ -168,47 +273,5 @@
     private void EditGroup()
     {
         Navigation.NavigateTo($"/edit-group/{groupId}");
-    }
-
-    private async Task PromoteToAdmin(int subscriberId)
-    {
-        if (group == null) return;
-
-        isSubmitting = true;
-        try
-        {
-            //await groupService.PromoteToAdmin(group.Id, subscriberId);
-            group.SubscriberIds.Remove(subscriberId);
-            group.ManagerIds.Add(subscriberId);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error promoting user: {ex.Message}");
-        }
-        finally
-        {
-            isSubmitting = false;
-        }
-    }
-
-    private async Task DemoteToSubscriber(int adminId)
-    {
-        if (group == null) return;
-
-        isSubmitting = true;
-        try
-        {
-            //await groupService.DemoteToSubscriber(group.Id, adminId);
-            group.ManagerIds.Remove(adminId);
-            group.SubscriberIds.Add(adminId);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error demoting user: {ex.Message}");
-        }
-        finally
-        {
-            isSubmitting = false;
-        }
     }
 }

@@ -76,5 +76,32 @@ namespace Front.Services
             }
         }
 
+
+        public async Task<UserDTO?> GetUserDTOById(int id)
+        {
+            try
+            {
+                var token = await _sessionStorage.GetAsync<string>("jwt");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+
+                HttpResponseMessage response = await _httpClient.GetAsync($"http://localhost:5000/api/User/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<UserDTO>();
+                    return result;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetUser: {ex.Message}");
+                return null;
+            }
+        }
+
     }
 }
