@@ -1,0 +1,359 @@
+﻿@page "/timetable"
+@* @inject TaskService taskService *@
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
+@inject GroupService GroupService
+@inject EventService EventService
+@inject UserService UserService
+
+<PageTitle>Task list</PageTitle>
+
+<AuthorizeView Roles="User">
+    <Authorized>
+        <h1>Timetable</h1>
+
+        <style>
+            .timetable {
+                height: 720px; 
+                overflow-y: auto; 
+                border: 1px solid black;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            td {
+                width: 100px;
+                position: relative;
+                border: 1px solid black;
+            }
+
+            #cours {
+                height: 1440px; 
+            }
+
+            #jours {
+                text-align: center;
+            }
+
+            .cours {
+                position: absolute;
+                outline: 1px solid black;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                font-size: 10px;
+                overflow: hidden;
+            }
+
+
+            .hour-placeholder {
+                position: absolute;
+                left: 0;
+                width: 100%;
+                border-top: 1px dashed lightgray;
+                font-size: 12px;
+                text-align: left;
+                padding-left: 5px;
+                color: gray;
+            }
+
+        </style>
+
+@*         @if (tasks != null)
+        {
+            <p><em>Loading...</em></p>
+        } *@
+
+
+        <div class="timetable">
+            <table>
+                <thead>
+                    <tr id="jours">
+                        @foreach (var dayName in new[] { "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche" })
+                        {
+                            <td>@dayName</td>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr id="cours">
+                        @for (int day = 0; day < 7; day++)
+                        {
+                            <td>
+                                @foreach (var course in schedule.Where(c => c.Day == day))
+                                {
+                                    <div class="cours" style="
+                                    top: @(course.Begin)px;
+                                    height: @((course.End - course.Begin))px;
+                                    width: @(course.NeighborId == course.NeighborCount - 1
+                                        ? (int)Math.Ceiling(100.0 / course.NeighborCount)  
+                                        : (int)Math.Floor(100.0 / course.NeighborCount))%;
+                                    left: @(Math.Floor(course.NeighborId * (100.0 / course.NeighborCount)))%;
+                                    background-color: @(course.Color);">
+                                    @(course.Name)<br>@(course.Admin)<br>@(course.Room)
+                                    </div>
+                                }
+                            </td>
+                        }
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+    </Authorized>
+
+    <NotAuthorized>
+        Not Logged in
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool showAddTaskForm = false;
+    private string newTaskTitle = string.Empty;
+    private string newTaskDescription = string.Empty;
+    private DateTime newTaskDeadline = DateTime.Today;
+    // private TaskModel[]? tasks;
+    // private TaskModel? taskToModify = null;
+    private string? addErrorMessage = string.Empty;
+    private string? updateErrorMessage = string.Empty;
+    public class Course
+    {
+        public int Day { get; set; }
+        public int Begin { get; set; }
+        public int End { get; set; }
+        public int NeighborCount { get; set; }
+        public int NeighborId { get; set; }
+
+        public string Name { get; set; }
+        public string Admin { get; set; }
+        public string Room { get; set; }
+        public string Group { get; set; }
+        public string Color { get; set; }
+
+        public Course(int day, int begin, int duration, string name, string admin, string room, string group)
+        {
+            Day = day;
+            Begin = begin;
+            End = begin + duration;
+            Name = name;
+            Admin = admin;
+            Room = room;
+            Group = group;
+            Color = "#00F";
+            NeighborCount = 0;
+            NeighborId = 0;
+        }
+    }
+
+    bool AreCoursesOverlapped(Course a, Course b)
+    {
+        if (a.Day != b.Day)
+            return false;
+        return a.Begin < b.End && b.Begin < a.End;
+    }
+
+
+    List<Course> schedule = new()
+    {
+
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var groups = await GroupService.GetFollowedGroups();
+        if (groups == null) return;
+
+        var allEvents = await EventService.GetAllEvents();
+        if (allEvents == null) return;
+
+        var followedGroupIds = groups.Select(g => g.Id).ToHashSet();
+        var followedEvents = allEvents.Where(e => followedGroupIds.Contains(e.GroupId));
+
+
+        foreach (var evt in followedEvents)
+        {
+            int day = (int)evt.StartingDate.DayOfWeek; // 0 = Dimanche, 1 = Lundi, etc.
+            day = (day == 0) ? 6 : day - 1; // Conversion pour que 0 = Lundi
+
+            var group = groups.FirstOrDefault(g => g.Id == evt.GroupId);
+            var admin = await UserService.GetUserDTOById(group?.ManagerIds.FirstOrDefault() ?? 0);
+            string adminName = admin?.Name ?? "Inconnu";
+
+            schedule.Add(new Course(
+                day,
+                evt.StartingDate.Hour,
+                evt.Duration,
+                evt.Title,
+                adminName,
+                evt.Place,
+                group?.Titre ?? "Inconnu"
+            ));
+        }
+    }
+
+    private string GetDayName(int day)
+    {
+        return day switch
+        {
+            0 => "Lundi",
+            1 => "Mardi",
+            2 => "Mercredi",
+            3 => "Jeudi",
+            4 => "Vendredi",
+            5 => "Samedi",
+            6 => "Dimanche",
+            _ => "Inconnu"
+        };
+    }
+
+
+
+
+
+
+
+
+
+
+    bool isCompatible(int[][] neighbors, List<int> list_a, List<int> list_b)
+    {
+        foreach (int a in list_a)
+        {
+            foreach (int b in list_b)
+            {
+                if (neighbors[a][b] == 1)
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+
+    private void updateColors()
+    {
+
+        List<string> colors = new List<string>
+        {
+            "#FF5733",  
+            "#33FF57",  
+            "#3357FF",  
+            "#FF33A1", 
+            "#F3FF33",  
+            "#33FFF3",  
+            "#A133FF", 
+            "#FF8C33",  
+            "#8CFF33",  
+            "#3333FF"
+        };
+
+        Dictionary<string, string> groupColorMap = new Dictionary<string, string>();
+        int colorIndex = 0;
+
+        foreach (var group in schedule.Select(c => c.Group).Distinct())
+        {
+            groupColorMap[group] = colors[colorIndex % colors.Count];
+            colorIndex++;
+        }
+
+        foreach (var course in schedule)
+        {
+            course.Color = groupColorMap[course.Group];
+        }
+
+    }
+
+    protected override void OnInitialized()
+    {
+        updateColors();
+
+        schedule = schedule
+            .OrderBy(c => c.Day)
+            .ThenBy(c => c.Begin)
+            .ThenBy(c => c.End - c.Begin)
+            .ToList();
+
+        int[][] neighbors = CreateNeighborsMatrix(schedule);
+
+        List<int> groups = IdentifyGroups(schedule, neighbors);
+
+        foreach (var (id_group, start_id, end_id) in ProcessGroups(groups, neighbors.Length))
+        {
+            var lines = OrganizeLines(start_id, end_id, neighbors);
+            ApplyLinesToSchedule(lines);
+        }
+    }
+
+    private int[][] CreateNeighborsMatrix(List<Course> schedule)
+    {
+        int[][] neighbors = new int[schedule.Count][];
+        for (int i = 0; i < schedule.Count; i++)
+        {
+            neighbors[i] = new int[schedule.Count];
+            for (int j = 0; j < schedule.Count; j++)
+            {
+                neighbors[i][j] = (j == i || AreCoursesOverlapped(schedule[i], schedule[j])) ? 1 : 0;
+            }
+        }
+        return neighbors;
+    }
+
+    private List<int> IdentifyGroups(List<Course> schedule, int[][] neighbors)
+    {
+        var groups = new List<int>();
+        for (int j = 0; j < schedule.Count; j++)
+        {
+            if (neighbors.Take(j + 1).Sum(row => row[j]) == 1)
+            {
+                groups.Add(j);
+            }
+        }
+        return groups;
+    }
+
+    private IEnumerable<(int id_group, int start_id, int end_id)> ProcessGroups(List<int> groups, int neighborCount)
+    {
+        for (int id_group = 0; id_group < groups.Count; id_group++)
+        {
+            int start_id = groups[id_group];
+            int end_id = (id_group != groups.Count - 1) ? groups[id_group + 1] - 1 : neighborCount - 1;
+            yield return (id_group, start_id, end_id);
+        }
+    }
+
+    private List<List<int>> OrganizeLines(int start_id, int end_id, int[][] neighbors)
+    {
+        var lines = Enumerable.Range(start_id, end_id - start_id + 1)
+            .Select(j => new List<int> { j })
+            .ToList();
+
+        for (int i = 0; i < lines.Count - 1; i++)
+        {
+            for (int j = i + 1; j < lines.Count; j++)
+            {
+                if (isCompatible(neighbors, lines[i], lines[j]))
+                {
+                    lines[i].AddRange(lines[j]);
+                    lines.RemoveAt(j--);
+                }
+            }
+        }
+        return lines;
+    }
+
+    private void ApplyLinesToSchedule(List<List<int>> lines)
+    {
+        for (int i = 0; i < lines.Count; i++)
+        {
+            foreach (var id in lines[i])
+            {
+                schedule[id].NeighborId = i;
+                schedule[id].NeighborCount = lines.Count;
+            }
+        }
+    }
+}
