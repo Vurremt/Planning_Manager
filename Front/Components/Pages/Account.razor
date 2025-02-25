@@ -7,7 +7,7 @@
 <PageTitle>Your Account</PageTitle>
 
 <AuthorizeView Roles="User">
-    <Authorized>
+    <Authorized Context="authContext">
 
         <h1>Account Options</h1>
 
@@ -20,10 +20,15 @@
         }
         else
         {
-            <div>Name : <input type="text" value=@user.Name /></div>
-            <div>Email : <input type="text" value=@user.Email /></div>
-            <div>Password : <input type="text" /></div>
-            <button type="submit">Apply modifications</button>
+            <EditForm Model="@userUpdate" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div>Name : <InputText id="name" @bind-Value="userUpdate.Name" class="form-control" /></div>
+                <div>Email : <InputText id="email" @bind-Value="userUpdate.Email" class="form-control" /></div>
+                <div>Password : <InputText id="password" @bind-Value="userUpdate.Password" class="form-control" /></div>
+                <button type="submit" class="btn btn-primary">Apply modifications</button>
+            </EditForm>
         }
 
         <br>
@@ -38,12 +43,28 @@
 </AuthorizeView>
 
 @code {
-
     private UserDTO? user;
+    private UserUpdateModel userUpdate = new UserUpdateModel();
 
     protected override async Task OnInitializedAsync()
     {
         user = await userService.GetMyUserDTO();
+        if (user != null)
+        {
+            userUpdate.Id = user.Id;
+            userUpdate.Name = user.Name;
+            userUpdate.Email = user.Email;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var updatedUser = await userService.UpdateUser(userUpdate);
+        if (updatedUser != null)
+        {
+            user = updatedUser;
+            userUpdate.Password = null; // Clear the password field after update
+        }
     }
 
     private async void Delete()
@@ -52,6 +73,5 @@
         await ((CustomAuthenticationStateProvider)authStateProvider).DeleteAccount();
         // Redirect the user to the register page
         NavigationManager.NavigateTo("/register");
-
     }
 }

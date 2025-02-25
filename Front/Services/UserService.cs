@@ -103,5 +103,32 @@ namespace Front.Services
             }
         }
 
+        public async Task<UserDTO?> UpdateUser(UserUpdateModel userUpdate)
+        {
+            try
+            {
+                var token = await _sessionStorage.GetAsync<string>("jwt");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+
+                HttpResponseMessage response = await _httpClient.PutAsJsonAsync($"http://localhost:5000/api/User/{userUpdate.Id}", userUpdate);
+
+                if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                {
+                    return await response.Content.ReadFromJsonAsync<UserDTO>();
+                }
+                else
+                {
+                    Console.WriteLine($"Error in UpdateUser: {response.ReasonPhrase}");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in UpdateUser: {ex.Message}");
+                return null;
+            }
+        }
+
+
     }
 }

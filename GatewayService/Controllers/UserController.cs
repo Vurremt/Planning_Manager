@@ -11,6 +11,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
+using System.Reflection;
+using System.Net.Http.Json;
 
 
 namespace GatewayService.Controllers
@@ -105,6 +108,47 @@ namespace GatewayService.Controllers
                 }
             }
         }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser(int id, UserUpdateModel userUdpate)
+        {
+            if (userUdpate.Name != null && !userUdpate.Name.All(c => Char.IsLetterOrDigit(c)))
+                return BadRequest("The username must only contain alphanumeric characters.");
+
+            if (userUdpate.Password != null && !userUdpate.Password.All(c => Char.IsLetterOrDigit(c)))
+                return BadRequest("The password must only contain alphanumeric characters.");
+
+            if (string.IsNullOrWhiteSpace(userUdpate.Name))
+                return BadRequest("Username can't be empty.");
+
+            if (string.IsNullOrWhiteSpace(userUdpate.Password))
+                return BadRequest("Password can't be empty.");
+
+            if (string.IsNullOrWhiteSpace(userUdpate.Email))
+                return BadRequest("Mail can't be empty.");
+
+            using (var client = _httpClientFactory.CreateClient())
+            {
+                client.BaseAddress = new System.Uri("http://localhost:5001/");
+
+                var UserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+                if (UserId == null) return Unauthorized();
+
+                HttpResponseMessage response = await client.PutAsJsonAsync($"api/Users/{id}", userUdpate);
+
+                // Check if the response status code is 2XX or 204 No Content
+                if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                {
+                    return NoContent();
+                }
+                else
+                {
+                    string responseBody = await response.Content.ReadAsStringAsync();
+                    return BadRequest("UpdateUser failed");
+                }
+            }
+        }
+
 
         // api/User/login
         [HttpPost("login")]
