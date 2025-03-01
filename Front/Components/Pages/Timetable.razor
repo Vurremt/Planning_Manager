@@ -44,7 +44,7 @@
                 justify-content: center;
                 align-items: center;
                 text-align: center;
-                font-size: 10px;
+                font-size: 14px;
                 overflow: hidden;
             }
 
@@ -62,15 +62,6 @@
 
         </style>
 
-        <div style="margin-top: 20px; padding: 10px; border: 1px solid gray;">
-            <h3>📜 Événements chargés cette semaine :</h3>
-            <ul>
-                @foreach (var log in eventLogs)
-                {
-                    <li>@log</li>
-                }
-            </ul>
-        </div>
 
 
         <div style="display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 10px;">
@@ -144,18 +135,17 @@
         endOfWeek = startOfWeek.AddDays(6);
     }
 
-    private void PreviousWeek()
+    private async Task PreviousWeek()
     {
         startOfWeek = startOfWeek.AddDays(-7);
-        UpdateWeek();
+        await LoadSchedule();
     }
 
-    private void NextWeek()
+    private async Task NextWeek()
     {
         startOfWeek = startOfWeek.AddDays(7);
-        UpdateWeek();
+        await LoadSchedule(); // Recharger le planning pour la semaine suivante
     }
-
 
 
     public class Course
@@ -195,59 +185,50 @@
     }
 
 
-    List<Course> schedule = new()
-    {
-
-    };
+    private List<Course> schedule = new();
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadSchedule();
+    }
+
+
+
+    private async Task LoadSchedule()
+    {
         UpdateWeek();
+        schedule.Clear();
+
         var groups = await GroupService.GetFollowedGroups();
         if (groups == null || !groups.Any())
         {
-            eventLogs.Add("Aucun groupe suivi récupéré");
             return;
-        }
-        else
-        {
-            eventLogs.Add($"{groups.Count()} groupes récupérés");
         }
 
         var allEvents = await EventService.GetAllEvents();
         if (allEvents == null || !allEvents.Any())
         {
-            eventLogs.Add("Aucun événement récupéré");
             return;
-        }
-        else
-        {
-            eventLogs.Add($"{allEvents.Count()} events récupérés");
         }
 
         var followedGroupIds = groups.Select(g => g.Id).ToHashSet();
         var followedEvents = allEvents.Where(e => followedGroupIds.Contains(e.GroupId));
-
 
         foreach (var evt in followedEvents)
         {
             int day = (int)evt.StartingDate.DayOfWeek;
             day = (day == 0) ? 6 : day - 1; // Conversion pour que 0 = Lundi
 
-            string logMessage = $"📅 {evt.Title} - {evt.StartingDate:dddd dd MMMM yyyy HH:mm} - {evt.Duration} min - 📍 {evt.Place}";
-            eventLogs.Add(logMessage);
-
             if (evt.StartingDate.Date >= startOfWeek.Date && evt.StartingDate.Date <= endOfWeek.Date)
             {
-
                 var group = groups.FirstOrDefault(g => g.Id == evt.GroupId);
                 var admin = await UserService.GetUserDTOById(group?.ManagerIds.FirstOrDefault() ?? 0);
                 string adminName = admin?.Name ?? "Inconnu";
 
                 schedule.Add(new Course(
                     day,
-                    evt.StartingDate.Hour * 60 + evt.StartingDate.Minute, // Convertir en minutes
-                    evt.Duration,
+                    evt.StartingDate.Hour * 60 + evt.StartingDate.Minute,
+                    evt.Duration * 60,
                     evt.Title,
                     adminName,
                     evt.Place,
@@ -256,7 +237,60 @@
             }
         }
 
+        List<string> colors = new List<string>
+    {
+        "#FF5733",
+        "#33FF57",
+        "#3357FF",
+        "#FF33A1",
+        "#F3FF33",
+        "#33FFF3",
+        "#A133FF",
+        "#FF8C33",
+        "#8CFF33",
+        "#3333FF"
+    };
+
+        Dictionary<string, string> groupColorMap = new Dictionary<string, string>();
+        int colorIndex = 0;
+
+        foreach (var group in schedule.Select(c => c.Group).Distinct())
+        {
+            groupColorMap[group] = colors[colorIndex % colors.Count];
+            colorIndex++;
+        }
+
+        foreach (var course in schedule)
+        {
+            course.Color = groupColorMap[course.Group];
+        }
+
+        schedule = schedule
+            .OrderBy(c => c.Day)
+            .ThenBy(c => c.Begin)
+            .ThenBy(c => c.End - c.Begin)
+            .ToList();
+
+        int[][] neighbors = CreateNeighborsMatrix(schedule);
+
+        List<int> tt_groups = IdentifyGroups(schedule, neighbors);
+
+        foreach (var (id_group, start_id, end_id) in ProcessGroups(tt_groups, neighbors.Length))
+        {
+            var lines = OrganizeLines(start_id, end_id, neighbors);
+            for (int i = 0; i < lines.Count; i++)
+            {
+                foreach (var id in lines[i])
+                {
+                    schedule[id].NeighborId = i;
+                    schedule[id].NeighborCount = lines.Count;
+                }
+            }
+        }
     }
+
+
+
 
     private string GetDayName(int day)
     {
@@ -290,63 +324,9 @@
         return true;
     }
 
-
-    private void updateColors()
-    {
-
-        List<string> colors = new List<string>
-        {
-            "#FF5733",  
-            "#33FF57",  
-            "#3357FF",  
-            "#FF33A1", 
-            "#F3FF33",  
-            "#33FFF3",  
-            "#A133FF", 
-            "#FF8C33",  
-            "#8CFF33",  
-            "#3333FF"
-        };
-
-        Dictionary<string, string> groupColorMap = new Dictionary<string, string>();
-        int colorIndex = 0;
-
-        foreach (var group in schedule.Select(c => c.Group).Distinct())
-        {
-            groupColorMap[group] = colors[colorIndex % colors.Count];
-            colorIndex++;
-        }
-
-        foreach (var course in schedule)
-        {
-            course.Color = groupColorMap[course.Group];
-        }
-
-    }
-
-    protected override void OnInitialized()
-    {
-        updateColors();
-
-        schedule = schedule
-            .OrderBy(c => c.Day)
-            .ThenBy(c => c.Begin)
-            .ThenBy(c => c.End - c.Begin)
-            .ToList();
-
-        int[][] neighbors = CreateNeighborsMatrix(schedule);
-
-        List<int> groups = IdentifyGroups(schedule, neighbors);
-
-        foreach (var (id_group, start_id, end_id) in ProcessGroups(groups, neighbors.Length))
-        {
-            var lines = OrganizeLines(start_id, end_id, neighbors);
-            ApplyLinesToSchedule(lines);
-        }
-    }
-
     private int[][] CreateNeighborsMatrix(List<Course> schedule)
     {
+
         int[][] neighbors = new int[schedule.Count][];
         for (int i = 0; i < schedule.Count; i++)
         {
@@ -400,17 +380,5 @@
             }
         }
         return lines;
-    }
-
-    private void ApplyLinesToSchedule(List<List<int>> lines)
-    {
-        for (int i = 0; i < lines.Count; i++)
-        {
-            foreach (var id in lines[i])
-            {
-                schedule[id].NeighborId = i;
-                schedule[id].NeighborCount = lines.Count;
-            }
-        }
     }
 }
