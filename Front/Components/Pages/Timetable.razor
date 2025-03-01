@@ -29,6 +29,7 @@
                 border: 1px solid black;
             }
 
+
             #cours {
                 height: 1440px; 
             }
@@ -46,19 +47,33 @@
                 text-align: center;
                 font-size: 14px;
                 overflow: hidden;
+                z-index: 1; /* Vous pouvez ajuster le z-index ici si nécessaire */
             }
 
-
-            .hour-placeholder {
+            .cours-placeholder {
                 position: absolute;
-                left: 0;
-                width: 100%;
-                border-top: 1px dashed lightgray;
-                font-size: 12px;
-                text-align: left;
-                padding-left: 5px;
-                color: gray;
+                outline: 1px solid lightgray;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                font-size: 14px;
+                overflow: hidden;
+                z-index: -1; /* Placer au dernier plan */
             }
+
+            .hour {
+                position: absolute;
+                outline: 1px solid black;
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
+                text-align: center;
+                font-size: 14px;
+                overflow: hidden;
+                z-index: 0; /* Ajuster si nécessaire pour que ce soit entre .cours et .cours-placeholder */
+            }
+
 
         </style>
 
@@ -77,7 +92,7 @@
             <table>
                 <thead>
                     <tr id="jours">
-                        @foreach (var dayName in new[] { "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche" })
+                        @foreach (var dayName in new[] { "Créneau", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche" })
                         {
                             <td>@dayName</td>
                         }
@@ -85,24 +100,56 @@
                 </thead>
                 <tbody>
                     <tr id="cours">
-                        @for (int day = 0; day < 7; day++)
+                        @for (int day = -1; day < 7; day++)  
                         {
-                            <td>
-                                @foreach (var course in schedule.Where(c => c.Day == day))
-                                {
-                                    <div class="cours" style="
-                                    top: @(course.Begin)px;
-                                    height: @((course.End - course.Begin))px;
-                                    width: @(course.NeighborId == course.NeighborCount - 1
-                                        ? (int)Math.Ceiling(100.0 / course.NeighborCount)  
-                                        : (int)Math.Floor(100.0 / course.NeighborCount))%;
-                                    left: @(Math.Floor(course.NeighborId * (100.0 / course.NeighborCount)))%;
-                                    background-color: @(course.Color);">
-                                    @(course.Name)<br>@(course.Admin)<br>@(course.Room)
-                                    </div>
-                                }
-                            </td>
+                            @if (day == -1)
+                            {
+                                <!-- Colonne des heures -->
+                                <td>
+
+                                    @for (int hour = 0; hour < 24; hour++)
+                                    {
+                                        <div class="hour" style="
+                                            top: @((hour * 1440) / 24)px;
+                                            height: @(1440 / 24)px;
+                                            width: 100%;
+                                            left: 0%;
+                                            background-color: #EEEEEE;">
+                                            @(hour)h
+                                        </div>
+                                    }
+                                </td> <!-- Première colonne vide (pour les heures) -->
+                            }
+                            else
+                            {
+                                <td>
+                                    @for (int hour = 0; hour < 24; hour++)
+                                    {
+                                        <div class="cours-placeholder" style="
+                                            top: @((hour * 1440) / 24)px;
+                                            height: @(1440 / 24)px;
+                                            width: 100%;
+                                            left: 0%;
+                                            background-color: #FFFFFF;">
+                                        </div>
+                                    }
+                                    @foreach (var course in schedule.Where(c => c.Day == day))
+                                    {
+                                        <div class="cours" style="
+                                            top: @(course.Begin)px;
+                                            height: @((course.End - course.Begin))px;
+                                            width: @(course.NeighborId == course.NeighborCount - 1
+                                                ? (int)Math.Ceiling(100.0 / course.NeighborCount)
+                                                : (int)Math.Floor(100.0 / course.NeighborCount))%;
+                                            left: @(Math.Floor(course.NeighborId * (100.0 / course.NeighborCount)))%;
+                                            background-color: @(course.Color);">
+                                            @(course.Name)<br>@(course.Admin)<br>@(course.Room)
+                                        </div>
+                                    }
+                                </td>
+                            }
                         }
+
                     </tr>
                 </tbody>
             </table>
