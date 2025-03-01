@@ -144,7 +144,7 @@
     private async Task NextWeek()
     {
         startOfWeek = startOfWeek.AddDays(7);
-        await LoadSchedule(); // Recharger le planning pour la semaine suivante
+        await LoadSchedule(); 
     }
 
 
@@ -227,12 +227,12 @@
 
                 schedule.Add(new Course(
                     day,
-                    evt.StartingDate.Hour * 60 + evt.StartingDate.Minute,
-                    evt.Duration * 60,
+                    ((evt.StartingDate.Minute * 1440) / 24) + evt.StartingDate.Second,
+                    (evt.Duration * 1440) / 24,
                     evt.Title,
                     adminName,
                     evt.Place,
-                    group?.Titre ?? "Inconnu"
+                    group?.Titre ?? ""
                 ));
             }
         }
