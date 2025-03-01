@@ -204,13 +204,30 @@
     {
         UpdateWeek();
         var groups = await GroupService.GetFollowedGroups();
-        if (groups == null) return;
+        if (groups == null || !groups.Any())
+        {
+            eventLogs.Add("Aucun groupe suivi récupéré");
+            return;
+        }
+        else
+        {
+            eventLogs.Add($"{groups.Count()} groupes récupérés");
+        }
 
         var allEvents = await EventService.GetAllEvents();
-        if (allEvents == null) return;
+        if (allEvents == null || !allEvents.Any())
+        {
+            eventLogs.Add("Aucun événement récupéré");
+            return;
+        }
+        else
+        {
+            eventLogs.Add($"{allEvents.Count()} events récupérés");
+        }
 
         var followedGroupIds = groups.Select(g => g.Id).ToHashSet();
         var followedEvents = allEvents.Where(e => followedGroupIds.Contains(e.GroupId));
+
 
         foreach (var evt in followedEvents)
         {
@@ -218,7 +235,7 @@
             day = (day == 0) ? 6 : day - 1; // Conversion pour que 0 = Lundi
 
             string logMessage = $"📅 {evt.Title} - {evt.StartingDate:dddd dd MMMM yyyy HH:mm} - {evt.Duration} min - 📍 {evt.Place}";
-            eventLogs.Add("logMessage");
+            eventLogs.Add(logMessage);
 
             if (evt.StartingDate.Date >= startOfWeek.Date && evt.StartingDate.Date <= endOfWeek.Date)
             {
