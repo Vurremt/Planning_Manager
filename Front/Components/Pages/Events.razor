@@ -1,5 +1,7 @@
 ﻿@page "/events"
 @inject EventService eventService
+@inject GroupService groupService
+@inject UserService userService
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
 <AuthorizeView Roles="User">
@@ -42,8 +44,14 @@
                             <InputNumber id="EventDuration" @bind-Value="@newEventDuration" />
                         </div>
                         <div class="input-add-form">
-                            <label for="EventGroupId">Group ID:</label>
-                            <InputNumber id="EventGroupId" @bind-Value="@newEventGroupId" />
+                            <label for="AdminGroups">Select Admin Group:</label>
+                            <select id="AdminGroups" class="form-control" @onchange="SetSelectedGroupId">
+                                <option value="" disabled selected>Select a group</option>
+                                @foreach (var group in adminGroups)
+                                {
+                                    <option value="@group.Id">@group.Titre</option>
+                                }
+                            </select>
                         </div>
                     </div>
                     <div>
@@ -143,14 +151,18 @@
     private string newEventDescription = string.Empty;
     private DateTime newEventStartingDateTime = DateTime.Now;
     private int newEventDuration = 0;
-    private int newEventGroupId = 0;
     private EventModel[]? events;
     private EventModel? eventToModify = null;
     private string? addErrorMessage = string.Empty;
     private string? updateErrorMessage = string.Empty;
 
+    private List<GroupModel> adminGroups = new();
+    private int selectedGroupId;
+
+
     protected override async Task OnInitializedAsync()
     {
+        await LoadAdminGroups();
         events = await eventService.GetAllEvents();
     }
 
@@ -182,10 +194,50 @@
         }
     }
 
+    private async Task LoadAdminGroups()
+    {
+        try
+        {
+            // Récupérer l'ID de l'utilisateur
+            var user = await userService.GetMyUserDTO();
+            if (user == null)
+            {
+                Console.WriteLine("Failed to retrieve user.");
+                return;
+            }
+
+            // Récupérer les groupes suivis
+            var followedGroups = await groupService.GetFollowedGroups();
+            adminGroups = followedGroups
+                .Where(group => group.ManagerIds.Contains(user.Id)) // Filtrer uniquement les groupes où l'utilisateur est admin
+                .ToList(); // Inclure tout le modèle pour avoir accès à "Titre" et "Id"
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading admin groups: {ex.Message}");
+        }
+    }
+
+    private void SetSelectedGroupId(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var groupId))
+        {
+            selectedGroupId = groupId;
+            Console.WriteLine($"Selected Group ID: {selectedGroupId}");
+        }
+    }
+
     private async Task AddEvent()
     {
         try
         {
+            if (selectedGroupId == 0)
+            {
+                addErrorMessage = "Please select a valid group.";
+                Console.WriteLine("No group selected.");
+                return;
+            }
+
             Console.WriteLine($"Constructed StartingDateTime: {newEventStartingDateTime}");
 
             var (createdEvent, error) = await eventService.CreateEvent(
@@ -194,7 +246,7 @@
                 newEventDescription,
                 newEventStartingDateTime,
                 newEventDuration,
-                newEventGroupId
+                selectedGroupId // Utiliser l'ID du groupe sélectionné
             );
 
             if (createdEvent != null)
@@ -214,9 +266,6 @@
             addErrorMessage = $"An error occurred: {ex.Message}";
         }
     }
-
-
-
 
     private async Task UpdateEvent(EventModel e)
     {
