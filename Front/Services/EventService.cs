@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace Front.Services
@@ -50,28 +51,39 @@ namespace Front.Services
             }
         }
 
-        public async Task<(EventModel? e, string? error)> CreateEvent(string title, string place, string? description, DateTime startingDate, int Duration, int groupId)
+        public async Task<(EventModel? e, string? error)> CreateEvent(string title, string place, string? description, DateTime startingDate, int duration, int groupId)
         {
-            var jwt = await _sessionStorage.GetAsync<string>("jwt");
+            Console.WriteLine($"Calling CreateEvent with: title='{title}', place='{place}', startingDate='{startingDate}', duration='{duration}', groupId='{groupId}'");
+
             var token = await _sessionStorage.GetAsync<string>("jwt");
 
             if (token.Success)
             {
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
 
-                var task = new EventCreateModel()
+                var newEvent = new EventCreateModel()
                 {
                     Title = title,
                     Place = place,
                     Description = description,
                     StartingDate = startingDate,
-                    Duration = Duration,
+                    Duration = duration,
                     GroupId = groupId
                 };
-                HttpResponseMessage response = await _httpClient.PostAsJsonAsync("http://localhost:5000/api/Task/create", task);
+
+                // Configure le sérialiseur en camelCase pour correspondre au format attendu
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+
+                Console.WriteLine($"Sending data to server: {JsonSerializer.Serialize(newEvent, options)}");
+
+                HttpResponseMessage response = await _httpClient.PostAsJsonAsync("http://localhost:5000/api/Event/create", newEvent, options);
 
                 if (response.IsSuccessStatusCode)
                 {
+                    Console.WriteLine("Server responded with success.");
                     var result = await response.Content.ReadFromJsonAsync<EventModel>();
 
                     return (result, "");
@@ -79,11 +91,16 @@ namespace Front.Services
                 else
                 {
                     var error = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Server responded with error: {error}");
                     return (null, error);
                 }
             }
+
+            Console.WriteLine("Token retrieval failed.");
             return (null, "Invalid Token");
         }
+
+
 
         public async Task<(EventModel? e, string? error)> UpdateEvent(EventModel newEvent)
         {

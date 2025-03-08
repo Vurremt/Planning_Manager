@@ -33,8 +33,9 @@
                             <InputText id="EventPlace" @bind-Value="@newEventPlace" />
                         </div>
                         <div class="input-add-form">
-                            <label for="EventStartingDate">Starting Date:</label>
-                            <InputDate id="EventStartingDate" @bind-Value="@newEventStartingDate" />
+                            <label for="EventDateTime">Starting DateTime:</label>
+                            <input type="datetime-local" id="EventDateTime" class="form-control"
+                                   @bind="newEventStartingDateTime" />
                         </div>
                         <div class="input-add-form">
                             <label for="EventDuration">Duration (hours):</label>
@@ -140,7 +141,7 @@
     private string newEventTitle = string.Empty;
     private string newEventPlace = string.Empty;
     private string newEventDescription = string.Empty;
-    private DateTime newEventStartingDate = DateTime.Today;
+    private DateTime newEventStartingDateTime = DateTime.Now;
     private int newEventDuration = 0;
     private int newEventGroupId = 0;
     private EventModel[]? events;
@@ -183,26 +184,39 @@
 
     private async Task AddEvent()
     {
-        if (string.IsNullOrWhiteSpace(newEventTitle) || string.IsNullOrWhiteSpace(newEventPlace) || newEventDuration <= 0)
+        try
         {
-            addErrorMessage = "Please fill in all required fields.";
-            return;
-        }
-        addErrorMessage = string.Empty;
+            Console.WriteLine($"Constructed StartingDateTime: {newEventStartingDateTime}");
 
-        var tuple = await eventService.CreateEvent(newEventTitle, newEventPlace, newEventDescription, newEventStartingDate, newEventDuration, newEventGroupId);
-        if (tuple.e != null)
-        {
-            var eventsList = events.ToList();
-            eventsList.Add(tuple.e);
-            events = eventsList.ToArray();
-            showAddEventForm = false;
+            var (createdEvent, error) = await eventService.CreateEvent(
+                newEventTitle,
+                newEventPlace,
+                newEventDescription,
+                newEventStartingDateTime,
+                newEventDuration,
+                newEventGroupId
+            );
+
+            if (createdEvent != null)
+            {
+                events = events.Append(createdEvent).ToArray();
+                Console.WriteLine("Event successfully created.");
+            }
+            else
+            {
+                addErrorMessage = error;
+                Console.WriteLine($"Error creating event: {error}");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            addErrorMessage = tuple.error;
+            Console.WriteLine($"Exception in AddEvent: {ex.Message}");
+            addErrorMessage = $"An error occurred: {ex.Message}";
         }
     }
+
+
+
 
     private async Task UpdateEvent(EventModel e)
     {
