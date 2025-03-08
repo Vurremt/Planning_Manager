@@ -238,34 +238,35 @@
                 return;
             }
 
-            Console.WriteLine($"Constructed StartingDateTime: {newEventStartingDateTime}");
+            // Ajouter les millisecondes au format avec .000
+            var formattedStartingDateTime = newEventStartingDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+
+            var startingDateTimeWithMilliseconds = DateTime.Parse(formattedStartingDateTime);
 
             var (createdEvent, error) = await eventService.CreateEvent(
                 newEventTitle,
                 newEventPlace,
                 newEventDescription,
-                newEventStartingDateTime,
+                startingDateTimeWithMilliseconds,
                 newEventDuration,
-                selectedGroupId // Utiliser l'ID du groupe sélectionné
+                selectedGroupId
             );
 
             if (createdEvent != null)
             {
                 events = events.Append(createdEvent).ToArray();
-                Console.WriteLine("Event successfully created.");
             }
             else
             {
                 addErrorMessage = error;
-                Console.WriteLine($"Error creating event: {error}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception in AddEvent: {ex.Message}");
             addErrorMessage = $"An error occurred: {ex.Message}";
         }
     }
+
 
     private async Task UpdateEvent(EventModel e)
     {
