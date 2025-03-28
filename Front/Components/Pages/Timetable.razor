@@ -71,7 +71,7 @@
                 text-align: center;
                 font-size: 14px;
                 overflow: hidden;
-                z-index: 0; 
+                z-index: 0; /* Ajuster si nécessaire pour que ce soit entre .cours et .cours-placeholder */
             }
 
 
@@ -337,22 +337,6 @@
     }
 
 
-
-
-    private string GetDayName(int day)
-    {
-        return day switch
-        {
-            0 => "Lundi",
-            1 => "Mardi",
-            2 => "Mercredi",
-            3 => "Jeudi",
-            4 => "Vendredi",
-            5 => "Samedi",
-            6 => "Dimanche",
-            _ => "Inconnu"
-        };
-    }
 
 
 
