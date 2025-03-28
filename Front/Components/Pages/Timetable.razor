@@ -71,7 +71,7 @@
                 text-align: center;
                 font-size: 14px;
                 overflow: hidden;
-                z-index: 0; /* Ajuster si nécessaire pour que ce soit entre .cours et .cours-placeholder */
+                z-index: 0; 
             }
 
 
@@ -274,7 +274,7 @@
 
                 schedule.Add(new Course(
                     day,
-                    ((evt.StartingDate.Minute * 1440) / 24) + evt.StartingDate.Second,
+                    ((evt.StartingDate.Hour * 1440) / 24) + evt.StartingDate.Minute,
                     (evt.Duration * 1440) / 24,
                     evt.Title,
                     adminName,
