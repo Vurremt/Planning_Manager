@@ -239,9 +239,11 @@
             }
 
             // Ajouter les millisecondes au format avec .000
-            var formattedStartingDateTime = newEventStartingDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            //var formattedStartingDateTime = newEventStartingDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fff");
 
-            var startingDateTimeWithMilliseconds = DateTime.Parse(formattedStartingDateTime);
+            //var startingDateTimeWithMilliseconds = DateTime.Parse(formattedStartingDateTime);
+            var startingDateTimeWithMilliseconds = newEventStartingDateTime;
+
 
             var (createdEvent, error) = await eventService.CreateEvent(
                 newEventTitle,
